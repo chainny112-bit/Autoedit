@@ -29,7 +29,13 @@ def transcribe_whisper(wav_path, model_size="small", language="th", log=print, d
         raise RuntimeError(
             f"โหลดโมเดล Whisper '{model_size}' ไม่สำเร็จ: {e}\n"
             "ตรวจสอบการเชื่อมต่ออินเทอร์เน็ตไปยัง huggingface.co หรือแนบไฟล์ซับ .srt/.vtt แทน") from e
-    segs, info = model.transcribe(str(wav_path), language=language or None, word_timestamps=True,
+    # Pass decoded samples, not a path: faster-whisper decodes paths with PyAV, and current PyAV releases
+    # reject the `metadata_errors` argument it uses. The wav is already 16 kHz mono from FFmpeg.
+    from .media import load_wav
+    pcm, sr = load_wav(wav_path)
+    if sr != 16000:
+        raise RuntimeError(f"ไฟล์เสียงสำหรับถอดเสียงต้องเป็น 16 kHz (ได้ {sr} Hz)")
+    segs, info = model.transcribe(pcm.astype(np.float32), language=language or None, word_timestamps=True,
                                   vad_filter=True, vad_parameters={"min_silence_duration_ms": 300},
                                   condition_on_previous_text=False, beam_size=5)
     out = []

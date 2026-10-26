@@ -97,3 +97,30 @@ def test_density_changes_effect_count():
         selector.direct(plan, {"mode": "auto", "density": level}, caps={"segmentation": False}, log=lambda *_: None)
         counts[level] = sum(len(s["effects"]) for s in plan["segments"] if s["keep"])
     assert counts[3] > counts[1]
+
+
+def test_whisper_gets_samples_not_a_path(monkeypatch, tmp_path):
+    """Regression: faster-whisper decodes file paths with PyAV, whose current releases reject the
+    `metadata_errors` argument it passes. We must hand it decoded 16 kHz samples instead."""
+    import sys
+    import types
+    import numpy as np
+    from engine import media
+    seen = {}
+
+    class FakeModel:
+        def __init__(self, *a, **k):
+            pass
+
+        def transcribe(self, audio, **kw):
+            seen["audio"] = audio
+            w = types.SimpleNamespace(word="สวัสดี", start=0.1, end=0.6)
+            seg = types.SimpleNamespace(start=0.1, end=0.6, text="สวัสดี", words=[w])
+            return iter([seg]), types.SimpleNamespace(language="th", language_probability=0.99)
+
+    monkeypatch.setitem(sys.modules, "faster_whisper", types.SimpleNamespace(WhisperModel=FakeModel))
+    wav = tmp_path / "a.wav"
+    media.save_wav(wav, np.zeros(16000, np.float32), 16000)
+    segs, info = T.transcribe_whisper(wav, log=lambda *_: None)
+    assert isinstance(seen["audio"], np.ndarray) and seen["audio"].dtype == np.float32
+    assert segs[0]["text"] == "สวัสดี"
