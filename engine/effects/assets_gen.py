@@ -15,7 +15,8 @@ def _rgb(h):
 
 
 def _font(name, size):
-    return ImageFont.truetype(str(FONTS_DIR / name), size, layout_engine=ImageFont.Layout.RAQM)
+    from ..graphics import LAYOUT
+    return ImageFont.truetype(str(FONTS_DIR / name), size, layout_engine=LAYOUT)
 
 
 def _key(*parts):

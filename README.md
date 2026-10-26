@@ -25,6 +25,18 @@ pip install -r requirements.txt
 - โมเดลแยกตัวบุคคล MediaPipe (`assets/models/selfie_multiclass_256x256.tflite`) มาพร้อมโปรเจกต์ ถ้าไม่มี MediaPipe
   เอฟเฟกต์ที่ต้องตัดขอบตัวบุคคลจะใช้ Fallback ให้อัตโนมัติ (ดูตารางด้านล่าง)
 
+### ติดตั้งบน macOS
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"   # ถ้ายังไม่มี Homebrew
+brew install python@3.12 ffmpeg fribidi git
+git clone https://github.com/chainny112-bit/Autoedit.git && cd Autoedit
+python3.12 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+./run.sh                                    # เปิด http://localhost:8000
+```
+ครั้งต่อไป: `cd Autoedit && source .venv/bin/activate && ./run.sh` · ใช้ Python 3.12 (MediaPipe ยังไม่รองรับทุกเวอร์ชันที่ใหม่กว่า)
+
 ## ใช้งานบนหน้าเว็บ
 
 | ส่วน | ทำอะไร |

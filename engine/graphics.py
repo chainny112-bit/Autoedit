@@ -9,6 +9,13 @@ from PIL import ImageFont
 from . import FONTS_DIR, thai
 
 W, H = 1080, 1920
+# libraqm shapes Thai exactly like libass; without it (e.g. macOS without `brew install fribidi`) fall back to the
+# basic layout engine — widths are then approximate, rendering itself is unaffected (libass draws the text).
+try:
+    from PIL import features as _features
+    LAYOUT = ImageFont.Layout.RAQM if _features.check("raqm") else ImageFont.Layout.BASIC
+except Exception:
+    LAYOUT = ImageFont.Layout.BASIC
 SAFE = {"top": 150, "bottom": 1500, "left": 70, "right": 1010}  # TikTok/Reels/Shorts UI-safe area
 FONT_FILES = {"Kanit ExtraBold": "Kanit-ExtraBold.ttf", "Kanit SemiBold": "Kanit-SemiBold.ttf", "Kanit": "Kanit-Regular.ttf",
               "Prompt Bold": "Prompt-Bold.ttf", "Chakra Petch Bold": "ChakraPetch-Bold.ttf",
@@ -45,7 +52,7 @@ def _font(family, ass_size):
     ref = ImageFont.truetype(str(path), 100)
     asc, desc = ref.getmetrics()
     em = max(4, int(round(ass_size * 100 / (asc + desc))))
-    return ImageFont.truetype(str(path), em, layout_engine=ImageFont.Layout.RAQM)
+    return ImageFont.truetype(str(path), em, layout_engine=LAYOUT)
 
 
 def text_width(text, family="Kanit ExtraBold", size=78):
