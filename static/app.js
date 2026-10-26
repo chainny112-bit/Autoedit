@@ -50,7 +50,8 @@ async function loadEnv() {
   items.push(["แยกตัวบุคคล (Segmentation)", ENV.effect_caps.segmentation, ENV.effect_caps.segmentation_detail, false]);
   $("#envList").innerHTML = items.map(([n, ok, d, req]) => `<div class="env-item ${ok ? "ok" : "bad"} ${req ? "req" : ""}"><b>${n}</b><span class="muted">${esc(d)}</span></div>`).join("");
   const warn = [];
-  if (!caps.ready) warn.push("⛔ เครื่องมือที่จำเป็นไม่ครบ (FFmpeg/ฟอนต์) — ระบบยังเรนเดอร์ไม่ได้");
+  if (!caps.ready) warn.push("⛔ เครื่องมือที่จำเป็นไม่ครบ — ระบบยังเรนเดอร์ไม่ได้: " +
+    ["ffmpeg", "ffprobe", "fonts"].filter((k) => !caps[k].ok).map((k) => esc(caps[k].detail)).join(" · "));
   if (!caps.speech_to_text.ok) warn.push("⚠️ ไม่มี Speech-to-Text — ต้องแนบไฟล์ .srt/.vtt มากับวิดีโอ");
   $("#envBanner").innerHTML = warn.join("<br>"); $("#envBanner").classList.toggle("hidden", !warn.length);
   $("#chkLlm").disabled = !caps.llm_story_analysis.ok; $("#chkAi").disabled = !caps.ai_image.ok;
@@ -134,7 +135,10 @@ $("#btnNewProject").addEventListener("click", async () => {
 const fVideo = $("#fVideo");
 function videoChosen() {
   const f = fVideo.files[0]; $("#nVideo").textContent = f ? `${f.name} · ${(f.size / 1048576).toFixed(1)} MB` : "";
-  $("#btnStart").disabled = !f; $("#startHint").textContent = f ? "ระบบจะวิเคราะห์ → AI Director เลือกเอฟเฟกต์ → เรนเดอร์ → ตรวจ QC ให้อัตโนมัติ" : "เลือกไฟล์วิดีโอก่อน";
+  const ready = ENV && ENV.capabilities.ready;
+  $("#btnStart").disabled = !f || !ready;
+  $("#startHint").textContent = !ready ? "ยังเริ่มไม่ได้: เครื่องมือที่จำเป็นไม่ครบ (ดูแถบแจ้งเตือนด้านบน และการ์ดสถานะเครื่องมือด้านล่าง)"
+    : f ? "ระบบจะวิเคราะห์ → AI Director เลือกเอฟเฟกต์ → เรนเดอร์ → ตรวจ QC ให้อัตโนมัติ" : "เลือกไฟล์วิดีโอก่อน";
 }
 fVideo.addEventListener("change", videoChosen);
 const drop = $("#dropVideo");
@@ -192,7 +196,7 @@ $("#btnStart").addEventListener("click", () => {
     await loadProjects();
     openJob(data.id);
   };
-  xhr.onerror = () => { $("#btnStart").disabled = false; toast("อัปโหลดไม่สำเร็จ (เครือข่าย)", true); };
+  xhr.onerror = () => { $("#btnStart").disabled = false; toast("ติดต่อเซิร์ฟเวอร์ไม่ได้ระหว่างอัปโหลด — ตรวจว่าหน้าต่าง Terminal ที่รันโปรแกรมยังเปิดอยู่ และดูข้อความ error ในนั้น", true); };
   xhr.send(fd);
 });
 

@@ -4,6 +4,15 @@ import os
 from . import FONTS_DIR, llm, media, transcribe, vision
 
 
+def _install_hint():
+    import sys
+    if sys.platform == "darwin":
+        return "บน Mac ให้รัน: brew install ffmpeg-full แล้วเปิดโปรแกรมใหม่ (ระบบจะใช้ ffmpeg-full ให้เอง)"
+    if sys.platform.startswith("win"):
+        return "ใช้ FFmpeg รุ่น full จาก gyan.dev หรือ BtbN แล้วเพิ่มโฟลเดอร์ bin เข้า PATH"
+    return "ติดตั้ง ffmpeg ที่มี libass/libx264 (เช่น apt install ffmpeg)"
+
+
 def capabilities():
     tv = media.tool_versions()
     ff = tv.get("ffmpeg", {})
@@ -13,9 +22,16 @@ def capabilities():
     except Exception:
         thai_nlp = False
     fonts = sorted(p.name for p in FONTS_DIR.glob("*.ttf"))
+    missing = [n for n, k in (("libass (ซับ/กราฟิก)", "libass"), ("libx264 (H.264)", "libx264"), ("aac (เสียง)", "aac"))
+               if ff.get("path") and not ff.get(k)]
+    if not ff.get("path"):
+        ff_detail = "ไม่พบ ffmpeg — " + _install_hint()
+    elif missing:
+        ff_detail = f"{ff.get('path')}: ขาด {', '.join(missing)} — {_install_hint()}"
+    else:
+        ff_detail = f"{ff.get('version', '')} ({ff.get('path')})"
     caps = {
-        "ffmpeg": {"ok": bool(ff.get("path")) and ff.get("libass") and ff.get("libx264") and ff.get("aac"),
-                   "detail": ff.get("version", "ไม่พบ ffmpeg"), "required": True},
+        "ffmpeg": {"ok": bool(ff.get("path")) and not missing, "detail": ff_detail, "required": True},
         "ffprobe": {"ok": bool(tv.get("ffprobe", {}).get("path")), "detail": tv.get("ffprobe", {}).get("version", "ไม่พบ"),
                     "required": True},
         "fonts": {"ok": bool(fonts), "detail": ", ".join(fonts) or "ไม่พบฟอนต์ไทยใน assets/fonts", "required": True},

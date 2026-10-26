@@ -29,7 +29,7 @@ pip install -r requirements.txt
 
 ```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"   # ถ้ายังไม่มี Homebrew
-brew install python@3.12 ffmpeg fribidi git
+brew install python@3.12 ffmpeg-full fribidi git   # ffmpeg-full: ตัว ffmpeg ปกติของ Homebrew ไม่มี libass (ซับ/กราฟิก)
 git clone https://github.com/chainny112-bit/Autoedit.git && cd Autoedit
 python3.12 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
