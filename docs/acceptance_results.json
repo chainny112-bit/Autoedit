@@ -1,0 +1,54 @@
+{
+ "job": "28dda40cdad1",
+ "when": "2026-10-26T09:58:25.720Z",
+ "results": [
+  {
+   "test": 1,
+   "name": "อัปโหลด + REDRABBIT SIGNATURE แล้วเรนเดอร์ได้จริง",
+   "pass": true,
+   "detail": "preset=redrabbit_signature accent=#BC0000 1080x1920 40.3s QC errors=0"
+  },
+  {
+   "test": 2,
+   "name": "ปรับ Density MINIMAL → DYNAMIC แล้ว Editing Plan เปลี่ยนตาม",
+   "pass": true,
+   "detail": "MINIMAL: เอฟเฟกต์ 3 จุด/ช่วงกราฟิก 5 → DYNAMIC: 8 จุด/5 · ไม่วิเคราะห์ใหม่ (analysis.json ไม่เปลี่ยน)=true"
+  },
+  {
+   "test": 3,
+   "name": "บันทึก Custom Preset แล้วเรียกใช้ได้หลังปิด/เปิดโปรแกรมใหม่",
+   "pass": true,
+   "detail": "id=custom_1b6e50eb หลังรีสตาร์ท: อยู่ในรายการ=true accent=#1e88e5 font=Prompt Bold banned=vertigo"
+  },
+  {
+   "test": 4,
+   "name": "สร้าง CLEAN / CINEMATIC / HIGH RETENTION จากต้นฉบับเดียว มี Timeline และผลลัพธ์แยกกัน",
+   "pass": true,
+   "detail": "presets=clean_creator,cinematic_storytelling,high_retention_social ไฟล์แยก=true บทพูดเดียวกัน=true เอฟเฟกต์: clean[Digital Zoom] cinematic[Pull-back Reveal] retention[Doodle Boil/UI World/Chart Grow/Checklist]"
+  },
+  {
+   "test": 5,
+   "name": "เลือก Export เฉพาะเวอร์ชันที่ต้องการ",
+   "pass": true,
+   "detail": "final: {\"main\":true,\"clean\":false,\"cinematic\":false,\"retention\":true} (main ถูก export ใน TEST 1)"
+  },
+  {
+   "test": 6,
+   "name": "AI API ไม่พร้อม → แจ้งสถานะและใช้ Fallback",
+   "pass": true,
+   "detail": "capability ai_image=false · preflight: \"ไม่ได้ตั้งค่า → ใช้ Placeholder\" · Paper Cut: ทำงานแบบ fallback เพราะไม่มี: ai_image → เรนเดอร์ด้วย fallback=true · แจ้งใน preflight: Paper Cut (s3): ไม่มี ai_image → ใช้ Fallback"
+  },
+  {
+   "test": 7,
+   "name": "ไฟล์เปิดเล่นได้จริง เสียง/ซับซิงก์ ไม่มีไฟล์เสีย",
+   "pass": true,
+   "detail": "ตรวจ 5 ไฟล์ (ffprobe + ถอดรหัสทั้งไฟล์ + QC sync) ปัญหา=ไม่มี · เล่นในเบราว์เซอร์=ok"
+  },
+  {
+   "test": "JS",
+   "name": "ไม่มี JavaScript error ในหน้าเว็บ",
+   "pass": true,
+   "detail": "ไม่มี"
+  }
+ ]
+}

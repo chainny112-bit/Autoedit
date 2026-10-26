@@ -1,0 +1,6 @@
+# runtime data (jobs, renders, caches, user presets/projects)
+data/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.tmp.mp4

@@ -1,0 +1,36 @@
+"""Detects which tools/services are available so the UI can warn and the pipeline can degrade."""
+import os
+
+from . import FONTS_DIR, llm, media, transcribe, vision
+
+
+def capabilities():
+    tv = media.tool_versions()
+    ff = tv.get("ffmpeg", {})
+    try:
+        import pythainlp  # noqa: F401
+        thai_nlp = True
+    except Exception:
+        thai_nlp = False
+    fonts = sorted(p.name for p in FONTS_DIR.glob("*.ttf"))
+    caps = {
+        "ffmpeg": {"ok": bool(ff.get("path")) and ff.get("libass") and ff.get("libx264") and ff.get("aac"),
+                   "detail": ff.get("version", "ไม่พบ ffmpeg"), "required": True},
+        "ffprobe": {"ok": bool(tv.get("ffprobe", {}).get("path")), "detail": tv.get("ffprobe", {}).get("version", "ไม่พบ"),
+                    "required": True},
+        "fonts": {"ok": bool(fonts), "detail": ", ".join(fonts) or "ไม่พบฟอนต์ไทยใน assets/fonts", "required": True},
+        "speech_to_text": {"ok": transcribe.whisper_available(),
+                           "detail": "faster-whisper (ดาวน์โหลดโมเดลจาก HuggingFace ครั้งแรก)" if transcribe.whisper_available()
+                           else "ไม่ได้ติดตั้ง faster-whisper — ต้องแนบไฟล์ซับ .srt/.vtt", "required": False},
+        "face_detection": {"ok": bool(vision.detector_name()), "detail": vision.detector_name() or "ไม่มี OpenCV — ใช้ครอปกึ่งกลาง",
+                           "required": False},
+        "thai_nlp": {"ok": thai_nlp, "detail": "PyThaiNLP (ตัดคำ/ตรวจคำ)" if thai_nlp else "ไม่มี PyThaiNLP — ตัดคำแบบพื้นฐาน",
+                     "required": False},
+        "llm_story_analysis": {"ok": llm.available(), "detail": "Claude API" if llm.available()
+                               else "ไม่มี ANTHROPIC_API_KEY — ใช้การวิเคราะห์แบบกฎ (heuristic)", "required": False},
+        "ai_image": {"ok": bool(os.environ.get("AUTOEDIT_IMAGE_CMD")),
+                     "detail": "AUTOEDIT_IMAGE_CMD ตั้งค่าแล้ว" if os.environ.get("AUTOEDIT_IMAGE_CMD")
+                     else "ไม่ได้ตั้งค่าตัวสร้างภาพ AI — ใช้ Placeholder + ภาพที่อัปโหลด", "required": False},
+    }
+    caps["ready"] = all(v["ok"] for v in caps.values() if isinstance(v, dict) and v.get("required"))
+    return caps

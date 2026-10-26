@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AutoEdit — ตัดต่อวิดีโออัตโนมัติ</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><img src="brand-logo-white.png" alt="Red Rabbit Online Marketing"><span class="sep"></span><span>AutoEdit<span class="dot">.</span></span><small>Multi-Style AI Video Editor</small></div>
+  <div class="proj">
+    <label class="muted small" for="projectSel">โปรเจกต์</label>
+    <select id="projectSel"></select>
+    <button class="ghost sm" id="btnNewProject" title="สร้างโปรเจกต์ใหม่ (แยกความจำสไตล์ของลูกค้าแต่ละราย)">+ โปรเจกต์</button>
+  </div>
+  <nav>
+    <button class="tab active" data-view="new">+ งานใหม่</button>
+    <button class="tab" data-view="job" id="tabJob" disabled>งานปัจจุบัน</button>
+    <button class="tab" data-view="presets">Presets</button>
+    <button class="tab" data-view="effects">เอฟเฟกต์ 17 แบบ</button>
+    <button class="tab" data-view="history">ประวัติงาน</button>
+  </nav>
+</header>
+
+<div id="envBanner" class="banner hidden"></div>
+
+<main>
+  <!-- ============ NEW JOB ============ -->
+  <section id="view-new" class="view">
+    <div class="grid2">
+      <div class="card">
+        <h2><span class="num">1</span> อัปโหลดวิดีโอ</h2>
+        <label class="drop" id="dropVideo">
+          <input type="file" id="fVideo" accept="video/mp4,video/quicktime,video/*">
+          <div class="drop-inner">
+            <div class="big">ลากไฟล์วิดีโอมาวาง หรือคลิกเพื่อเลือก</div>
+            <div class="muted">MP4 / MOV · แนวตั้งหรือแนวนอน · มีผู้พูดหน้ากล้อง (แนะนำ 1–5 นาที)</div>
+            <div class="file-name" id="nVideo"></div>
+          </div>
+        </label>
+        <div class="extra">
+          <div class="field">
+            <label>Transcript (.srt / .vtt) <span class="opt">ไม่บังคับ — ใช้แทน Speech-to-Text</span></label>
+            <input type="file" id="fTranscript" accept=".srt,.vtt">
+          </div>
+          <div class="field">
+            <label>ภาพอ้างอิงสไตล์ <span class="opt">ใช้ดึงโทนสีของกราฟิก</span></label>
+            <input type="file" id="fRefs" accept="image/*" multiple>
+            <div class="thumbs" id="refThumbs"></div>
+          </div>
+          <div class="field">
+            <label>ภาพ/วิดีโอประกอบ (B-roll) <span class="opt">ตั้งชื่อไฟล์ตามเนื้อหา เช่น "ทะเลสาบ.jpg" ระบบจะจับคู่กับประโยคให้</span></label>
+            <input type="file" id="fBroll" accept="image/*,video/*" multiple>
+            <div class="row">
+              <span class="muted">แหล่งที่มา:</span>
+              <select id="brollSource">
+                <option value="user">ไฟล์ของฉัน</option>
+                <option value="stock">Stock ที่มีสิทธิ์ใช้งาน</option>
+                <option value="ai">ภาพที่สร้างด้วย AI (จะติดป้ายกำกับ)</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label>เพลงประกอบ <span class="opt">ต้องเป็นเพลงที่มีสิทธิ์ใช้งาน</span></label>
+            <input type="file" id="fMusic" accept="audio/*">
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2><span class="num">2</span> สไตล์การตัดต่อ</h2>
+        <div class="settings" id="settingsForm">
+          <div class="field wide"><label>Style Preset <span class="opt" id="memoryNote"></span></label>
+            <select id="presetSel"></select>
+            <div class="muted small" id="presetDesc"></div></div>
+          <div class="field wide"><label>โหมดการตัดต่อ</label>
+            <div class="seg" id="modeSeg"></div><div class="muted small" id="modeDesc"></div></div>
+          <div class="field"><label>ความหนาแน่นเอฟเฟกต์ (Smart Density)</label>
+            <div class="seg" id="densitySeg"></div><div class="muted small" id="densityDesc"></div></div>
+          <div class="field"><label>ความเข้มข้นของเอฟเฟกต์</label>
+            <div class="seg" id="intensitySeg"></div><div class="muted small">LOW เรียบง่าย · MEDIUM สมดุล · HIGH เด่นชัดในช่วงสำคัญ (ไม่ได้แปลว่าใส่ทุกวินาที)</div></div>
+          <div class="field"><label>สีหลัก / สีรอง</label>
+            <div class="row"><input type="color" name="accent" value="#BC0000"><input type="color" name="accent2" value="#A8CE20">
+            <label class="chk"><input type="checkbox" name="use_reference_colors"> ใช้สีจากภาพอ้างอิงแทน</label></div></div>
+          <div class="field"><label>ชื่อแบรนด์ (หัวนิตยสาร / Dashboard)</label><input type="text" name="brand_name" value="RED RABBIT" maxlength="30"></div>
+          <div class="field"><label>รูปแบบซับไตเติล</label>
+            <select name="subtitle_mode"><option value="keyword">เน้นคำสำคัญ (สีหลัก)</option><option value="karaoke">ไฮไลต์ทีละคำตามเสียง</option></select></div>
+          <div class="field"><label>ฟอนต์ซับ</label><select name="subtitle_font" id="fontSel"></select></div>
+          <div class="field"><label>ขนาดซับ <output id="subSizeOut">92</output></label>
+            <input type="range" name="subtitle_size" min="60" max="120" value="92"></div>
+          <div class="field"><label>จังหวะการตัด</label>
+            <select name="pacing"><option value="calm">ช้า/ใจเย็น</option><option value="normal" selected>ปกติ</option><option value="fast">เร็ว กระชับ</option></select></div>
+          <div class="field"><label>Export Profile</label><select name="export_profile" id="profileSel"></select></div>
+          <div class="field"><label>เพลงพื้นหลัง</label>
+            <select name="music"><option value="generated" selected>เพลงบรรยากาศที่ระบบสร้างเอง (ปลอดลิขสิทธิ์)</option><option value="upload">ใช้ไฟล์ที่อัปโหลด</option><option value="none">ไม่ใส่เพลง</option></select></div>
+          <div class="field"><label>ระดับเพลง (dB) <output id="musicOut">-26</output></label>
+            <input type="range" name="music_db" min="-40" max="-14" value="-26"></div>
+          <div class="field"><label>เฟรมเรต</label>
+            <select name="fps"><option value="source" selected>ตามต้นฉบับ</option><option value="24">24</option><option value="25">25</option><option value="30">30</option><option value="60">60</option></select></div>
+          <div class="field"><label>โมเดลถอดเสียง (faster-whisper)</label>
+            <select name="asr_model"><option value="small" selected>small (เร็ว)</option><option value="medium">medium (แม่นขึ้น)</option><option value="large-v3">large-v3 (แม่นที่สุด ช้า)</option></select></div>
+          <div class="checks">
+            <label class="chk"><input type="checkbox" name="title_cards" checked> Title Card</label>
+            <label class="chk"><input type="checkbox" name="sfx" checked> Sound Effects</label>
+            <label class="chk"><input type="checkbox" name="denoise" checked> ลดเสียงรบกวน</label>
+            <label class="chk"><input type="checkbox" name="cut_fillers" checked> ตัดคำติดปาก</label>
+            <label class="chk"><input type="checkbox" name="cut_repeats" checked> ตัดประโยคพูดซ้ำ</label>
+            <label class="chk"><input type="checkbox" name="vignette" checked> Vignette/Color grade</label>
+            <label class="chk"><input type="checkbox" name="review_before_export"> หยุดให้ตรวจแผนก่อน Export</label>
+          </div>
+          <div class="checks paid">
+            <label class="chk"><input type="checkbox" name="use_llm" id="chkLlm"> อนุญาตเรียก Claude API วิเคราะห์เรื่อง <b>(มีค่าใช้จ่าย)</b></label>
+            <label class="chk"><input type="checkbox" name="allow_ai_images" id="chkAi"> อนุญาตสร้างภาพ AI <b>(อาจมีค่าใช้จ่าย)</b></label>
+          </div>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <button class="ghost sm" id="btnSaveAsPreset">บันทึกค่านี้เป็น Preset ใหม่</button>
+        </div>
+        <button class="primary big-btn" id="btnStart" disabled>เริ่มตัดต่ออัตโนมัติ</button>
+        <div class="muted small" id="startHint">เลือกไฟล์วิดีโอก่อน</div>
+        <div class="upload-progress hidden" id="upProg"><div class="bar"><i></i></div><span></span></div>
+      </div>
+    </div>
+    <div class="card env-card">
+      <h3>สถานะเครื่องมือในระบบ</h3>
+      <div id="envList" class="env-list">กำลังตรวจสอบ…</div>
+    </div>
+  </section>
+
+  <!-- ============ JOB ============ -->
+  <section id="view-job" class="view hidden">
+    <div class="card status-card">
+      <div class="status-head">
+        <div><h2 id="jobTitle">—</h2><div class="muted small" id="jobId"></div></div>
+        <div class="actions">
+          <button id="btnReanalyze" class="ghost">วิเคราะห์ใหม่</button>
+          <button id="btnVariations" class="primary">Generate Variations</button>
+        </div>
+      </div>
+      <div class="progress"><div class="bar"><i id="anaBar"></i></div><span id="anaMsg"></span></div>
+      <details class="log"><summary>บันทึกการทำงาน (log)</summary><pre id="logBox"></pre></details>
+    </div>
+
+    <div class="card" id="compareCard">
+      <div class="plan-head"><h2>เปรียบเทียบเวอร์ชัน</h2>
+        <div class="actions"><label class="muted small">ดูช่วงเดียวกัน:</label><select id="cmpSeg"></select>
+          <button class="ghost sm" id="btnCmpPlay">▶ เล่นพร้อมกัน</button></div></div>
+      <div class="table-wrap"><table class="cmp" id="cmpTable"><thead><tr>
+        <th>เวอร์ชัน / Preset</th><th>ความยาว</th><th>ซับ</th><th>เอฟเฟกต์หลัก</th><th>B-roll</th><th>Motion Graphics</th><th>Transition</th><th>สถานะ</th><th></th>
+      </tr></thead><tbody></tbody></table></div>
+      <p class="muted small">จำนวนเอฟเฟกต์ไม่ได้บอกคุณภาพ — เปิดดูวิดีโอจริงเทียบช่วงเดียวกันก่อนตัดสินใจ</p>
+      <div class="cmp-players" id="cmpPlayers"></div>
+    </div>
+
+    <div class="card">
+      <div class="vtabs" id="variantTabs"></div>
+      <div class="grid-out">
+        <div>
+          <div class="style-bar">
+            <div class="field"><label>Preset</label><select id="vPreset"></select></div>
+            <div class="field"><label>โหมด</label><select id="vMode"></select></div>
+            <div class="field"><label>Density</label><select id="vDensity"></select></div>
+            <div class="field"><label>Intensity</label><select id="vIntensity"><option value="low">LOW</option><option value="medium">MEDIUM</option><option value="high">HIGH</option></select></div>
+            <div class="field"><label>Export</label><select id="vProfile"></select></div>
+            <button class="ghost sm" id="btnRestyle" title="สร้าง Editing Plan ใหม่จากผลวิเคราะห์เดิม ไม่ต้องถอดเสียงใหม่">ใช้สไตล์นี้</button>
+          </div>
+          <div class="direction" id="directionBox"></div>
+          <div class="players">
+            <figure><figcaption>Preview (540×960)</figcaption><video id="vPreview" controls playsinline></video>
+              <div class="muted small" id="previewInfo">ยังไม่มี Preview</div></figure>
+            <figure><figcaption>วิดีโอจริง</figcaption><video id="vFinal" controls playsinline></video>
+              <a id="btnDownload" class="primary dl hidden" href="#">⬇ ดาวน์โหลด MP4</a>
+              <div class="muted small" id="finalInfo">ยังไม่ได้ Export</div></figure>
+          </div>
+        </div>
+        <div>
+          <div class="vstatus"><div class="progress"><div class="bar"><i id="progBar"></i></div><span id="progMsg"></span></div></div>
+          <div class="actions">
+            <button id="btnPreview" class="ghost">สร้าง Preview</button>
+            <button id="btnRender" class="primary">Export เวอร์ชันนี้</button>
+            <button id="btnCancel" class="ghost danger hidden">ยกเลิก</button>
+            <button id="btnDelVariant" class="ghost sm hidden">ลบเวอร์ชัน</button>
+          </div>
+          <div class="preflight" id="preflightBox"></div>
+          <h3>รายงานตรวจสอบก่อนส่งงาน (QC)</h3>
+          <ul class="qc" id="qcList"><li class="muted">—</li></ul>
+          <details class="fxrep"><summary>สถานะการเรนเดอร์เอฟเฟกต์</summary><ul class="qc" id="fxReport"></ul></details>
+        </div>
+      </div>
+    </div>
+
+    <div class="card plan-card">
+      <div class="plan-head">
+        <h2>Editing Timeline & Effect Map <span class="muted small" id="planSummary"></span></h2>
+        <div class="actions">
+          <label class="chk small"><input type="checkbox" id="showCut" checked> แสดงช่วงที่ตัด</label>
+          <button id="btnSavePlan" class="ghost">บันทึกแผน</button>
+          <button id="btnSavePreview" class="primary">บันทึก + Preview</button>
+        </div>
+      </div>
+      <div class="timeline" id="timelineStrip"></div>
+      <div class="legend">
+        <span><i class="lg full"></i>ผู้พูดเต็มจอ</span><span><i class="lg pip"></i>ภาพประกอบบน/ผู้พูดล่าง</span>
+        <span><i class="lg split"></i>Split</span><span><i class="lg broll_full"></i>ภาพประกอบเต็มจอ</span>
+        <span><i class="lg fit"></i>Fit + blur</span><span><i class="lg cut"></i>ตัดออก</span><span>◆ = มีเอฟเฟกต์</span>
+      </div>
+      <div class="table-wrap"><table class="plan" id="planTable">
+        <thead><tr><th>Start / End</th><th>ภาพ</th><th>เก็บ</th><th>บทพูด / ซับไตเติล</th><th>รูปแบบภาพ</th><th>เอฟเฟกต์ & เหตุผล</th><th>Transition เข้า / เสียง</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+    </div>
+
+    <div class="card">
+      <h2>ไฟล์ประกอบในงานนี้</h2>
+      <div id="assetList" class="asset-list"></div>
+      <div class="row add-asset">
+        <input type="file" id="fMoreAssets" multiple accept="image/*,video/*,audio/*,.srt,.vtt">
+        <select id="moreRole"><option value="broll">ภาพประกอบ</option><option value="reference">ภาพอ้างอิง</option><option value="music">เพลง</option><option value="transcript">Transcript</option></select>
+        <select id="moreSource"><option value="user">ของฉัน</option><option value="stock">Stock</option><option value="ai">AI</option></select>
+        <button id="btnAddAssets" class="ghost">เพิ่มไฟล์</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PRESETS ============ -->
+  <section id="view-presets" class="view hidden">
+    <div class="grid-presets">
+      <div class="card"><h2>Style Presets</h2><div id="presetList" class="preset-list"></div>
+        <button class="primary" id="btnNewPreset" style="margin-top:12px;width:100%">+ สร้าง Preset ใหม่</button></div>
+      <div class="card" id="presetEditor"><h2 id="peTitle">เลือก Preset</h2><div id="peBody" class="muted">เลือก Preset ทางซ้ายเพื่อดูหรือแก้ไข</div></div>
+    </div>
+  </section>
+
+  <!-- ============ EFFECTS ============ -->
+  <section id="view-effects" class="view hidden">
+    <div class="card"><h2>Effect Library — สถานะการทำงานจริง</h2>
+      <p class="muted small">ทำงานจริง = เรนเดอร์ภาพนั้นจริงด้วยเครื่องมือในระบบ · จำลอง = ได้ผลใกล้เคียงด้วยเทคนิค 2D/2.5D (ไม่ใช่การถ่ายทำ/สร้างภาพ 3 มิติจริง) · ต้องใช้ API = ต้องเชื่อมต่อบริการภายนอก</p>
+      <div id="effectGrid" class="effect-grid"></div></div>
+  </section>
+
+  <!-- ============ HISTORY ============ -->
+  <section id="view-history" class="view hidden">
+    <div class="card"><h2>ประวัติงานในโปรเจกต์นี้</h2><div id="historyList"></div></div>
+  </section>
+</main>
+
+<dialog id="varDialog">
+  <form method="dialog" class="dlg">
+    <h2>Generate Variations</h2>
+    <p class="muted small">ทุกเวอร์ชันใช้ไฟล์ต้นฉบับ บทพูด และผลวิเคราะห์เดียวกัน (ไม่ถอดเสียงใหม่) เปลี่ยนเฉพาะจังหวะ ภาพประกอบ กราฟิก และการจัดวาง</p>
+    <div id="varChoices" class="var-choices"></div>
+    <label class="chk"><input type="checkbox" id="varPreview" checked> สร้าง Preview ทุกเวอร์ชันต่อเนื่องอัตโนมัติ (เข้าคิวทีละเวอร์ชัน)</label>
+    <div class="row" style="justify-content:flex-end;margin-top:14px">
+      <button value="cancel" class="ghost">ยกเลิก</button>
+      <button value="ok" class="primary" id="varGo">สร้างเวอร์ชัน</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast" class="toast hidden"></div>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+# System requirement: FFmpeg >= 5 built with libass, libx264 and aac (e.g. `apt install ffmpeg` / `brew install ffmpeg`)
+fastapi>=0.110
+uvicorn>=0.29
+python-multipart>=0.0.9
+numpy>=1.26
+pillow>=10.0          # needs libraqm for accurate Thai text measurement (bundled in recent wheels)
+pythainlp>=5.0        # Thai tokenisation, dictionary for spell flags
+opencv-contrib-python>=4.9,<5    # face detection; 4.x keeps CascadeClassifier and satisfies mediapipe (do not also install opencv-python*)
+faster-whisper>=1.0   # optional: speech-to-text (downloads model from huggingface.co on first use)
+anthropic>=0.40       # optional: story analysis with Claude when ANTHROPIC_API_KEY is set
+mediapipe>=0.10       # person segmentation for Frame Break / Green Screen / Couch Wall / Vertigo / Cover Story (Linux: apt install libegl1 libgles2)
+pydantic>=2           # preset validation (installed with fastapi)
