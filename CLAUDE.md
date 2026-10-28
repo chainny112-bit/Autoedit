@@ -15,12 +15,13 @@
 3. ส่ง `output/<clip>_edited.mp4` กลับด้วย SendUserFile พร้อมสรุปสั้นๆ: ความยาวเดิม → ใหม่, ตัดอะไรออก, เอฟเฟกต์หลัก,
    คำเตือน QC ที่สำคัญ (เช่นคำที่อาจสะกดผิดในซับ)
 4. ถ้าผู้ใช้ขอแก้ (ซับผิด, ไม่เอาเพลง ฯลฯ) ให้รันใหม่ด้วย `--settings '{"music":"none"}'`, `--settings '{"sfx":false}'`
-   หรือแก้ซับเป็น `.srt` แล้วส่ง `--srt`
+   หรือแก้ซับเป็น `.srt` แล้วส่ง `--srt` — ถ้าส่ง `--settings` เอง ให้ใส่ `"asr_model":"large-v3-turbo"` ไว้ด้วย
 
 ## ข้อควรรู้
 
-- Speech-to-Text ใช้ faster-whisper ซึ่งต้องดาวน์โหลดโมเดลจาก `huggingface.co` — ถ้า environment บล็อกโดเมนนี้
-  (403 Forbidden) ให้บอกผู้ใช้เพิ่ม `huggingface.co` ใน Allowed domains ของ environment หรือแนบไฟล์ `.srt` มาด้วย
+- Speech-to-Text ใช้ faster-whisper `large-v3-turbo` (~1.6× ความยาวคลิปบน CPU) ดาวน์โหลดโมเดลจาก `huggingface.co`
+  และ `*.hf.co` — ถ้าโดนบล็อก (403) ให้บอกผู้ใช้เพิ่มทั้งสองโดเมนใน Allowed domains ของ environment หรือแนบ `.srt` มา
+- คลิปตัวอย่างใน `samples/` ใช้เสียงสังเคราะห์ espeak ซึ่ง Whisper ถอดไม่ได้ — ทดสอบด้วย `--srt samples/sample.srt`
 - ผลลัพธ์เป็นแนวตั้ง 1080×1920 (9:16) เท่านั้น
 - ไฟล์ใน `inbox/`, `output/`, `data/` ไม่ถูก commit
 - ทดสอบ: `python3 -m pytest -q tests`

@@ -11,5 +11,7 @@ srt="${clip%.*}.srt"
 args=()
 # Use a transcript placed next to the clip when there is one (skips speech-to-text).
 [ -f "$srt" ] && [[ " $* " != *" --srt "* ]] && args+=(--srt "$srt")
+# Thai speech-to-text is much more accurate with large-v3-turbo than the engine's default "small" model.
+[[ " $* " != *" --settings "* ]] && args+=(--settings '{"asr_model":"large-v3-turbo"}')
 mkdir -p output
 python3 cli.py "$clip" "${args[@]}" "$@" -o "output/${name}_edited.mp4"
