@@ -31,6 +31,43 @@ BLUE, TEAL, GOLD = "#3D6FB6", "#2F9E8F", "#F2B21B"
 
 sc = Script({"accent": RED, "accent2": LIME})
 SFX = []          # (time, kind)
+SPRITES = []      # animated character instances, composited under the ASS layer by FFmpeg
+SPRITE_DIR = ROOT / "assets/characters/sprites"
+SPRITE_W, SPRITE_H = 440, 590   # sprite frame (viewBox crop of assets/characters/animated_character.svg)
+
+
+def char(t0, t1, cx, top, h, variant, anim="rise", delay=0.0, flip=False):
+    """Place the animated SVG character (pre-rendered sprite) centred at cx with its frame top at `top`."""
+    SPRITES.append({"t0": t0 + delay, "t1": t1, "cx": cx, "top": top, "h": h, "variant": variant, "anim": anim,
+                    "flip": flip})
+
+
+def sprite_graph(start, idx0):
+    """FFmpeg inputs + overlay chain for every SPRITES entry. Returns (inputs, graph, last_label)."""
+    inputs, g, cur, idx = [], "", start, idx0
+    for k, sp in enumerate(SPRITES):
+        path = SPRITE_DIR / f"{sp['variant']}.webm"
+        if not path.exists():
+            raise SystemExit(f"ไม่พบ sprite {path} — สร้างด้วย: node tools/render_character_sprites.js")
+        w = round(sp["h"] * SPRITE_W / SPRITE_H / 2) * 2
+        h = round(sp["h"] / 2) * 2
+        x, y, t0 = sp["cx"] - w / 2, sp["top"], sp["t0"]
+        e = f"min(1,max(0,(t-{t0:.3f})/0.38))"
+        if sp["anim"] == "left":
+            xe, ye = f"{x:.0f}+({-w - 40:.0f}-{x:.0f})*pow(1-{e},3)", f"{y:.0f}"
+        elif sp["anim"] == "right":
+            xe, ye = f"{x:.0f}+({W + 40:.0f}-{x:.0f})*pow(1-{e},3)", f"{y:.0f}"
+        else:
+            xe, ye = f"{x:.0f}", f"{y:.0f}+70*pow(1-{e},3)"
+        phase = (k * 0.73) % 6   # characters don't blink in unison
+        # libvpx decoder is required to keep the alpha channel of VP9 sprites
+        inputs += ["-stream_loop", "-1", "-ss", f"{phase:.2f}", "-c:v", "libvpx-vp9", "-i", str(path)]
+        g += (f";[{idx}:v]scale={w}:{h},format=rgba{',hflip' if sp['flip'] else ''},"
+              f"fade=t=in:st={t0:.3f}:d=0.2:alpha=1[sp{k}];"
+              f"[{cur}][sp{k}]overlay=x='{xe}':y='{ye}':enable='between(t,{t0:.3f},{sp['t1']:.3f})'[sc{k}]")
+        cur = f"sc{k}"
+        idx += 1
+    return inputs, g, cur, idx
 
 
 # ------------------------------------------------------------------ drawing primitives
@@ -235,13 +272,13 @@ def scene_queue(a, b):
           extra=f"\\clip(0,875,1080,1920)\\move(165,760,165,880,600,1000)")
     text(a, b, 250, 990, "A012", size=60, color=RED, delay=0.85, layer=12)
     bubble(a, b, 640, 690, "หยิบบัตรคิวก่อน", size=64, delay=0.7, tail=(470, 720))
-    # waiting chairs with people
-    for i in range(3):
-        group(a, b, 470 + i * 190, 1330, chair(), anim="rise", delay=1.6 + 0.08 * i, layer=6)
-        if i != 1:
-            group(a, b, 480 + i * 190, 1100, person([BLUE, TEAL, RED][i], sit=True), anim="rise", delay=1.7 + 0.1 * i,
-                  layer=8)
-    group(a, b, 490 + 190, 1100, person(LIME, sit=True), anim="rise", delay=2.0, layer=8)
+    # people seated behind a waiting bench (the bench is drawn over their legs)
+    for i, (cx, v) in enumerate(((600, "blue_idle"), (860, "teal_idle"))):
+        char(a, b, cx, 1032, 350, v, delay=1.7 + 0.15 * i)
+    bench = [(0, 0, rrect(620, 34, 14), "#9C6F45", {"border": INK, "bord": 5, "z": 1}),
+             (10, 34, rrect(600, 110, 10), "#B8875A", {"border": INK, "bord": 5}),
+             (40, 144, rrect(26, 70, 8), GREY), (554, 144, rrect(26, 70, 8), GREY)]
+    group(a, b, 420, 1290, bench, anim="rise", delay=1.6, layer=8)
     bubble(a, b, 540, 1600, "นั่งรอเรียกคิว", size=70, delay=2.3, border=LIME)
 
 
@@ -256,7 +293,7 @@ def scene_call(a, b):
     SFX.append((a + 0.6, "pop"))
     SFX.append((a + 0.9, "pop"))
     # officer at desk
-    group(a, b, 640, 900, person("#2E4E7E", s=1.15), anim="rise", delay=0.4, layer=6)
+    char(a, b, 760, 700, 480, "navy_wave", delay=0.4)
     group(a, b, 330, 1130, [(0, 0, rrect(620, 60, 14), "#B8875A", {"border": INK, "bord": 6}),
                             (30, 60, rrect(560, 300, 10), "#9C6F45", {"border": INK, "bord": 6})],
           anim="rise", delay=0.5, layer=9)
@@ -267,8 +304,8 @@ def scene_call(a, b):
 
 def scene_sign(a, b):
     step_badge(a, b, 3, "ผู้ซื้อ–ผู้ขาย เซ็นเอกสาร")
-    group(a, b, 110, 820, person(BLUE), anim="left", delay=0.1)
-    group(a, b, 850, 820, person(RED), anim="right", delay=0.15)
+    char(a, b, 175, 690, 450, "blue_idle", anim="left", delay=0.1)
+    char(a, b, 905, 690, 450, "red_idle", anim="right", delay=0.15, flip=True)
     text(a, b, 170, 1160, "ผู้ซื้อ", size=50, color=BLUE, delay=0.5)
     text(a, b, 910, 1160, "ผู้ขาย", size=50, color=RED, delay=0.55)
     group(a, b, 360, 560, document(), anim="rise", delay=0.3, layer=8)
@@ -288,11 +325,16 @@ def scene_sign(a, b):
 
 def scene_pay(a, b):
     step_badge(a, b, 4, "ชำระเงินค่าโอนที่ช่อง")
-    counter = [(0, 0, rrect(760, 520, 24), "#D6DCE5", {"border": INK, "bord": 6}),
-               (60, 60, rrect(640, 300, 18), "#BFE3F2", {"border": INK, "bord": 5, "z": 1}),
-               (0, 400, rrect(760, 50, 10), "#9C6F45", {"border": INK, "bord": 5, "z": 2})]
+    # counter frame around a see-through glass window, the cashier stands behind it
+    counter = [(0, 0, rrect(760, 60, 20), "#D6DCE5", {"border": INK, "bord": 6}),
+               (0, 0, rrect(60, 420, 20), "#D6DCE5", {"border": INK, "bord": 6}),
+               (700, 0, rrect(60, 420, 20), "#D6DCE5", {"border": INK, "bord": 6}),
+               (60, 60, rrect(640, 300, 18), "#BFE3F2", {"border": INK, "bord": 5, "z": 1, "alpha": 0xB0}),
+               (0, 360, rrect(760, 60, 10), "#D6DCE5", {"border": INK, "bord": 6}),
+               (0, 400, rrect(760, 50, 10), "#9C6F45", {"border": INK, "bord": 5, "z": 2}),
+               (0, 450, rrect(760, 90, 10), "#D6DCE5", {"border": INK, "bord": 6})]
     group(a, b, 160, 560, counter, anim="rise", delay=0.1)
-    group(a, b, 470, 640, person(TEAL, s=0.95), anim="rise", delay=0.3, layer=3)
+    char(a, b, 540, 590, 430, "teal_idle", delay=0.3)
     shape(a, b, 380, 490, rrect(320, 90, 20), RED, layer=11, anim="fade", delay=0.2)
     text(a, b, 540, 535, "ช่องชำระเงิน", size=52, color=WHITE, pop=False, layer=13)
     # banknote slides onto the counter, receipt pops
@@ -312,8 +354,8 @@ def scene_pay(a, b):
 
 def scene_check_back(a, b):
     step_badge(a, b, 5, "ยืนรอเรียก ตรวจสอบหลังโฉนด")
-    for i, c in enumerate((BLUE, RED, TEAL)):
-        group(a, b, 120 + i * 150, 1040, person(c, s=0.85), anim="rise", delay=0.1 + 0.08 * i, layer=6)
+    for i, (cx, v) in enumerate(((170, "blue_idle"), (330, "red_idle"), (490, "lime_idle"))):
+        char(a, b, cx, 880, 360, v, delay=0.1 + 0.08 * i)
     group(a, b, 580, 560, deed(), anim="rise", delay=0.4, layer=8)
     text(a, b, 790, 1140, "หลังโฉนด", size=48, color=GREY, delay=0.6)
     # magnifier sweeping over the deed
@@ -328,16 +370,16 @@ def scene_check_back(a, b):
 
 def scene_keys(a, b):
     text(a, b, 540, 330, "ระหว่างยืนรอ...", size=80, color=GREY, delay=0.1)
-    group(a, b, 120, 760, person(RED, arm_up=False, s=1.2), anim="left", delay=0.1)
-    group(a, b, 780, 760, person(BLUE, s=1.2), anim="right", delay=0.15)
-    text(a, b, 190, 1160, "ผู้ขาย", size=50, color=RED, delay=0.4)
-    text(a, b, 850, 1160, "ผู้ซื้อ", size=50, color=BLUE, delay=0.45)
+    char(a, b, 240, 690, 520, "red_idle", anim="left", delay=0.1)
+    char(a, b, 840, 690, 520, "blue_idle", anim="right", delay=0.15, flip=True)
+    text(a, b, 240, 1250, "ผู้ขาย", size=50, color=RED, delay=0.4)
+    text(a, b, 840, 1250, "ผู้ซื้อ", size=50, color=BLUE, delay=0.45)
     # key travels from seller to buyer
     for i, p in enumerate(key(s=0.8)):
         dx, dy, path, fill = p[:4]
         kw = p[4] if len(p) > 4 else {}
         b_ = kw.get("bord", 0)
-        sc.ev(a + 0.7, b, "{" + f"\\an7\\move({300 + dx:.0f},{860 + dy:.0f},{570 + dx:.0f},{840 + dy:.0f},300,1300)"
+        sc.ev(a + 0.7, b, "{" + f"\\an7\\move({345 + dx:.0f},{985 + dy:.0f},{545 + dx:.0f},{970 + dy:.0f},300,1300)"
               f"\\p1\\bord{b_}\\shad0\\1c{ass_color(fill)}\\3c{ass_color(INK)}\\fad(200,150)" + "}" + path + "{\\p0}",
               20 + kw.get("z", 0))
     SFX.append((a + 1.0, "whoosh"))
@@ -366,8 +408,9 @@ def scene_receive(a, b):
 
 def scene_photo(a, b):
     step_badge(a, b, 7, "ถ่ายรูปแสดงความยินดี")
-    for i, c in enumerate((BLUE, RED, TEAL)):
-        group(a, b, 230 + i * 220, 800, person(c, arm_up=(i != 1), s=1.1), anim="rise", delay=0.1 + 0.1 * i, layer=6)
+    # middle person last so they stand in front; the outer two wave
+    for cx, v, d in ((300, "red_wave", 0.1), (780, "teal_wave", 0.2), (540, "blue_idle", 0.3)):
+        char(a, b, cx, 740, 470, v, delay=d, flip=(cx > 540))
     small_deed = [(0, 0, rrect(210, 150, 10), "#FFF9E6", {"border": INK, "bord": 5}), (80, 30, circle(50), GOLD, {"z": 1})]
     group(a, b, 435, 1150, small_deed, anim="rise", delay=0.5, layer=12)
     # camera flash
@@ -576,14 +619,16 @@ def main():
     media.save_wav(work / "audio.wav", np.clip(track, -0.95, 0.95), sr)
 
     inputs = ["-f", "lavfi", "-i", f"color=c={BG.replace('#', '0x')}:s={W}x{H}:r={FPS}:d={total:.3f}"]
-    fc = f"[0:v]ass=anim.ass:fontsdir={os.path.relpath(FONTS_DIR, work)}[v0]"
-    idx = 1
+    sp_in, sp_g, base, idx = sprite_graph("0:v", 1)
+    inputs += sp_in
+    fc = f"[0:v]null[bg0]{sp_g.replace('[0:v][sp', '[bg0][sp')};[{base if base != '0:v' else 'bg0'}]" \
+         f"ass=anim.ass:fontsdir={os.path.relpath(FONTS_DIR, work)}[v0]"
     # customer photos go into the polaroids (under the frames' white border is fine: drawn after ass? no — before)
     if photos:
         cards, thumbs = make_cards(photos, work)
         starts, grid_t = customer_timing(cust_start, len(photos))
         end = cust_start + customers_duration(len(photos))
-        pre, cur = "[0:v]null[b0]", "b0"
+        pre, cur = f"[0:v]null[bg0]{sp_g.replace('[0:v][sp', '[bg0][sp')}", (base if base != "0:v" else "bg0")
         for k, ((cp, cw, ch), st) in enumerate(zip(cards, starts)):
             inputs += ["-loop", "1", "-t", f"{total:.3f}", "-i", str(cp)]
             xc, yc = (W - cw) / 2, max(560, 1150 - ch / 2)
