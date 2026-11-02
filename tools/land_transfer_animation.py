@@ -797,12 +797,7 @@ def main():
     tk_in, tk_g, vcur, idx = tick_graph("v0", idx, total)
     inputs += tk_in
     fc += tk_g
-    logo = ROOT / "assets/brand/redrabbit_logo_red.png"
-    inputs += ["-loop", "1", "-t", f"{total:.3f}", "-i", str(logo)]
-    end_t = total - 3.8 + 1.6
-    fc += (f";[{idx}:v]crop=2200:1300:780:1250,scale=520:-1,format=rgba,fade=t=in:st={end_t:.2f}:d=0.4:alpha=1[lg];"
-           f"[{vcur}][lg]overlay=(W-w)/2:1440:enable='gte(t,{end_t:.2f})'[v]")
-    idx += 1
+    fc += f";[{vcur}]null[v]"
     inputs += ["-i", str(work / "audio.wav")]
     cmd = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", *inputs, "-filter_complex", fc, "-map", "[v]",
            "-map", f"{idx}:a", "-af", "loudnorm=I=-15:TP=-1.5:LRA=11", "-c:v", "libx264", "-profile:v", "high", "-pix_fmt", "yuv420p", "-crf", "18",
