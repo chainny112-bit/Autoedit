@@ -530,7 +530,7 @@ def main():
     idx += 1
     inputs += ["-i", str(work / "audio.wav")]
     cmd = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", *inputs, "-filter_complex", fc, "-map", "[v]",
-           "-map", f"{idx}:a", "-c:v", "libx264", "-profile:v", "high", "-pix_fmt", "yuv420p", "-crf", "18",
+           "-map", f"{idx}:a", "-af", "loudnorm=I=-15:TP=-1.5:LRA=11", "-c:v", "libx264", "-profile:v", "high", "-pix_fmt", "yuv420p", "-crf", "18",
            "-preset", "medium", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2", "-movflags", "+faststart",
            "-t", f"{total:.3f}", str(Path(a.out).resolve())]
     subprocess.run(cmd, check=True, cwd=work)
