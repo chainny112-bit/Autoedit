@@ -6,6 +6,7 @@ music and pop/whoosh effects. 9:16, 1080x1920.
 Usage: python3 tools/land_transfer_animation.py OUT.mp4 [--photo IMG ...] [--voice CLIP x5]
   --voice  the 5 voice-over clips in order (audio or video files). Each scene then lasts as long as its line;
            music ducks under the voice. Without them the clip is music + SFX only.
+  --no-music  sound effects only.
   --photo  real customer photos for the "ตัวอย่างลูกค้าของเรา" scene (up to 9). Without them the scene shows an
            illustration clearly labelled "ภาพประกอบ".
 """
@@ -447,7 +448,7 @@ def scene_sign(a, b):
 
 
 def scene_pay(a, b):
-    step_badge(a, b, 4, "ชำระเงินค่าโอนที่ช่อง")
+    step_badge(a, b, 4, "ชำระค่าโอนที่ช่อง")
     # counter frame around a see-through glass window, the cashier stands behind it
     counter = [(0, 0, rrect(760, 60, 20), "#D6DCE5", {"border": INK, "bord": 6}),
                (0, 0, rrect(60, 420, 20), "#D6DCE5", {"border": INK, "bord": 6}),
@@ -459,7 +460,7 @@ def scene_pay(a, b):
     group(a, b, 160, 560, counter, anim="rise", delay=0.1)
     char(a, b, 540, 590, 430, "teal_idle", delay=0.3)
     shape(a, b, 380, 490, rrect(320, 90, 20), RED, layer=11, anim="fade", delay=0.2)
-    text(a, b, 540, 535, "ช่องชำระเงิน", size=52, color=WHITE, pop=False, layer=13)
+    text(a, b, 540, 535, "ช่องชำระ", size=52, color=WHITE, pop=False, layer=13)
     # banknote slides onto the counter, receipt pops
     note = [(0, 0, rrect(260, 130, 12), "#7FBF6A", {"border": INK, "bord": 5}),
             (95, 30, circle(70), "#5E9E4C", {"z": 1})]
@@ -701,6 +702,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("out")
     ap.add_argument("--photo", action="append", default=[])
+    ap.add_argument("--no-music", action="store_true", help="sound effects only, no background music")
     ap.add_argument("--voice", action="append", default=[],
                     help="voice-over clips (audio or video), 5 in order; scene timing follows the voice")
     a = ap.parse_args()
@@ -733,7 +735,7 @@ def main():
         wipe(c)
     (work / "anim.ass").write_text(sc.document(), encoding="utf-8")
 
-    track = music(total, sr)
+    track = np.zeros(int(total * sr), np.float32) if a.no_music else music(total, sr)
     if vo_at:
         vo = np.zeros_like(track)
         for at, x in vo_at:
@@ -755,6 +757,8 @@ def main():
         i0 = int(max(0, at) * sr)
         x = bank[kind][: max(0, len(track) - i0)] * gain[kind]
         track[i0:i0 + len(x)] += x
+    if a.no_music and not vo_at:   # sparse SFX: peak-normalise instead of loudness-normalising silence
+        track = track / (np.abs(track).max() + 1e-9) * 0.84
     media.save_wav(work / "audio.wav", np.clip(track, -0.95, 0.95), sr)
 
     inputs = ["-f", "lavfi", "-i", f"color=c={BG.replace('#', '0x')}:s={W}x{H}:r={FPS}:d={total:.3f}"]
@@ -800,7 +804,7 @@ def main():
     fc += f";[{vcur}]null[v]"
     inputs += ["-i", str(work / "audio.wav")]
     cmd = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", *inputs, "-filter_complex", fc, "-map", "[v]",
-           "-map", f"{idx}:a", "-af", "loudnorm=I=-15:TP=-1.5:LRA=11", "-c:v", "libx264", "-profile:v", "high", "-pix_fmt", "yuv420p", "-crf", "18",
+           "-map", f"{idx}:a", *([] if a.no_music and not vo_at else ["-af", "loudnorm=I=-15:TP=-1.5:LRA=11"]), "-c:v", "libx264", "-profile:v", "high", "-pix_fmt", "yuv420p", "-crf", "18",
            "-preset", "medium", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2", "-movflags", "+faststart",
            "-t", f"{total:.3f}", str(Path(a.out).resolve())]
     subprocess.run(cmd, check=True, cwd=work)
