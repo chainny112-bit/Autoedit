@@ -173,6 +173,13 @@ docs/               ภาพหน้าจอ · acceptance_results.json
 | `samples/effects_gallery.mp4` | ทั้ง 17 เอฟเฟกต์ 1080×1920 พร้อมป้ายชื่อและระดับการทำงาน |
 | `docs/acceptance_results.json` | ผล Acceptance tests 1–7 ล่าสุด |
 
+## ตัวละครอนิเมชัน (SVG)
+
+- `assets/characters/animated_character.svg` — ตัวละครเสื้อแดง SVG + CSS Animation (ลอยตัว โบกมือ กะพริบตา ผมไหว,
+  ปิดอนิเมชันอัตโนมัติเมื่อผู้ใช้ตั้งค่า reduce motion) เปิดในเบราว์เซอร์หรือฝังในเว็บด้วย `<img src="animated_character.svg">`
+- `assets/characters/character_editor.html` — ดับเบิลคลิกเปิดได้เลย: ดูตัวอย่างสด, เปลี่ยนสีเสื้อ/ผิว/ผม/กางเกง/รองเท้า,
+  ปรับความเร็ว (บันทึกลงโค้ด), หยุด/เล่น, เปลี่ยนพื้นหลัง, แก้โค้ด SVG โดยตรง, เปิดไฟล์ SVG อื่น และดาวน์โหลด
+
 ## การทดสอบ
 
 ```bash

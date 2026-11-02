@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800" role="img" aria-labelledby="title desc">
+<title id="title">Animated human character</title>
+<desc id="desc">A friendly cartoon young person in a red jacket, with subtle body movement, blinking eyes, and waving hand.</desc>
+<defs>
+  <linearGradient id="skin" x1="0" y1="0" x2="0.8" y2="1">
+    <stop offset="0" stop-color="#ffd9bd"/><stop offset="1" stop-color="#eeb18e"/>
+  </linearGradient>
+  <linearGradient id="shirt" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#ff555b"/><stop offset="1" stop-color="#bd142b"/>
+  </linearGradient>
+  <style>
+    .person { transform-origin: 400px 690px; animation: float 3s ease-in-out infinite; }
+    .wave { transform-origin: 550px 455px; animation: wave 1.2s ease-in-out infinite; }
+    .eyes { transform-origin: 400px 330px; animation: blink 4s infinite; }
+    .hair { transform-origin: 400px 250px; animation: hairMove 3s ease-in-out infinite; }
+    @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+    @keyframes wave { 0%,100%{transform:rotate(0deg)} 25%{transform:rotate(-15deg)} 55%{transform:rotate(12deg)} 80%{transform:rotate(-8deg)} }
+    @keyframes blink { 0%,44%,48%,100%{transform:scaleY(1)} 46%{transform:scaleY(.08)} }
+    @keyframes hairMove { 0%,100%{transform:rotate(0)} 50%{transform:rotate(2deg)} }
+    @media (prefers-reduced-motion: reduce) { .person,.wave,.eyes,.hair{animation:none} }
+  </style>
+</defs>
+
+<ellipse cx="400" cy="710" rx="155" ry="22" fill="#4c2025" opacity=".12"/>
+<g class="person">
+  <!-- legs -->
+  <path d="M337 580 L328 680 Q327 703 350 704 L376 704 Q390 701 385 683 L395 590Z" fill="#293449" stroke="#29232a" stroke-width="9" stroke-linejoin="round"/>
+  <path d="M412 590 L422 682 Q421 703 444 704 L470 704 Q490 700 480 680 L474 578Z" fill="#293449" stroke="#29232a" stroke-width="9" stroke-linejoin="round"/>
+  <path d="M326 690 Q350 679 383 692 L389 713 L315 713 Q308 702 326 690Z" fill="#f5f3ef" stroke="#29232a" stroke-width="8"/>
+  <path d="M425 691 Q454 679 481 690 L497 712 L420 712 Q414 700 425 691Z" fill="#f5f3ef" stroke="#29232a" stroke-width="8"/>
+
+  <!-- torso -->
+  <path d="M315 410 Q400 376 485 410 L510 594 Q403 628 290 594Z" fill="url(#shirt)" stroke="#29232a" stroke-width="10" stroke-linejoin="round"/>
+  <path d="M372 400 L400 450 L429 400" fill="#fff0e8" stroke="#29232a" stroke-width="7" stroke-linejoin="round"/>
+  <path d="M399 450 L399 596" stroke="#9d1728" stroke-width="5" opacity=".7"/>
+  <circle cx="400" cy="495" r="5" fill="#ffe1d3"/><circle cx="400" cy="535" r="5" fill="#ffe1d3"/>
+
+  <!-- left arm -->
+  <path d="M317 429 Q284 438 271 478 L244 548 Q235 568 252 578 Q270 587 281 566 L328 488Z" fill="url(#shirt)" stroke="#29232a" stroke-width="9" stroke-linejoin="round"/>
+  <path d="M251 562 Q238 579 250 593 Q262 607 278 591 L286 570Z" fill="url(#skin)" stroke="#29232a" stroke-width="8"/>
+
+  <!-- raised waving arm -->
+  <g class="wave">
+    <path d="M480 427 Q520 425 537 459 L566 507 Q576 526 559 539 Q542 550 529 531 L489 482Z" fill="url(#shirt)" stroke="#29232a" stroke-width="9" stroke-linejoin="round"/>
+    <path d="M554 517 Q566 500 582 510 Q595 518 590 536 L582 559 Q578 573 564 572 Q548 571 549 555Z" fill="url(#skin)" stroke="#29232a" stroke-width="8"/>
+    <path d="M565 514 Q553 492 562 479 Q570 469 578 481 L583 503 Q594 482 603 491 Q612 501 597 520 L583 536Z" fill="url(#skin)" stroke="#29232a" stroke-width="8" stroke-linejoin="round"/>
+    <path d="M579 515 Q589 494 602 502" fill="none" stroke="#d99576" stroke-width="4" stroke-linecap="round"/>
+  </g>
+
+  <!-- neck -->
+  <path d="M369 369 L369 416 Q400 445 431 416 L431 367Z" fill="url(#skin)" stroke="#29232a" stroke-width="8"/>
+
+  <!-- ears and face -->
+  <ellipse cx="303" cy="321" rx="21" ry="34" fill="url(#skin)" stroke="#29232a" stroke-width="8"/>
+  <ellipse cx="497" cy="321" rx="21" ry="34" fill="url(#skin)" stroke="#29232a" stroke-width="8"/>
+  <path d="M306 307 Q305 225 400 211 Q495 225 494 307 L481 359 Q467 416 400 421 Q333 416 319 359Z" fill="url(#skin)" stroke="#29232a" stroke-width="9"/>
+
+  <!-- hair -->
+  <g class="hair">
+    <path d="M307 309 Q286 236 338 197 Q377 165 430 184 Q494 191 501 260 Q503 286 490 315 Q470 280 448 263 Q416 284 372 270 Q343 267 321 298 L317 325Z" fill="#30252a" stroke="#29232a" stroke-width="9" stroke-linejoin="round"/>
+    <path d="M333 228 Q370 188 414 202 Q385 205 372 239 Q355 250 333 228Z" fill="#594047" opacity=".8"/>
+  </g>
+
+  <!-- face -->
+  <g class="eyes">
+    <ellipse cx="363" cy="326" rx="8" ry="13" fill="#30252a"/>
+    <ellipse cx="438" cy="326" rx="8" ry="13" fill="#30252a"/>
+    <circle cx="365" cy="322" r="3" fill="#fff"/>
+    <circle cx="440" cy="322" r="3" fill="#fff"/>
+  </g>
+  <path d="M342 302 Q362 291 379 301 M422 301 Q440 291 458 302" fill="none" stroke="#30252a" stroke-width="6" stroke-linecap="round"/>
+  <path d="M399 334 Q391 355 402 359" fill="none" stroke="#d18f72" stroke-width="4" stroke-linecap="round"/>
+  <path d="M377 378 Q400 399 425 378" fill="none" stroke="#8e3941" stroke-width="6" stroke-linecap="round"/>
+  <ellipse cx="340" cy="365" rx="17" ry="9" fill="#f28f8d" opacity=".45"/>
+  <ellipse cx="460" cy="365" rx="17" ry="9" fill="#f28f8d" opacity=".45"/>
+</g>
+
+<!-- little motion accents -->
+<path d="M606 360 L619 340 M623 374 L644 367 M589 340 L590 319" stroke="#ed3549" stroke-width="7" stroke-linecap="round"/>
+<path d="M190 385 L200 365 M210 397 L230 392" stroke="#ed3549" stroke-width="6" stroke-linecap="round" opacity=".7"/>
+</svg>
