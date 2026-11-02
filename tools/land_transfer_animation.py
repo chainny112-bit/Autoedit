@@ -1,9 +1,11 @@
-"""Animated explainer (no narration, no subtitles): the house-transfer day at the Land Office, step by step.
+"""Animated explainer (optional voice-over, no subtitles): the house-transfer day at the Land Office, step by step.
 
 Everything is drawn as vectors with libass (ASS drawing commands) and rendered by FFmpeg, with generated
 music and pop/whoosh effects. 9:16, 1080x1920.
 
-Usage: python3 tools/land_transfer_animation.py OUT.mp4 [--photo IMG ...]
+Usage: python3 tools/land_transfer_animation.py OUT.mp4 [--photo IMG ...] [--voice CLIP x5]
+  --voice  the 5 voice-over clips in order (audio or video files). Each scene then lasts as long as its line;
+           music ducks under the voice. Without them the clip is music + SFX only.
   --photo  real customer photos for the "ตัวอย่างลูกค้าของเรา" scene (up to 9). Without them the scene shows an
            illustration clearly labelled "ภาพประกอบ".
 """
@@ -68,6 +70,130 @@ def sprite_graph(start, idx0):
         cur = f"sc{k}"
         idx += 1
     return inputs, g, cur, idx
+
+
+TICKS = []        # ✅ emoji overlays (t0, t1, cx, cy, size), composited above the ASS layer
+CHECK_PNG = ROOT / "assets/icons/check_emoji.png"
+
+
+def tick(t0, t1, cx, cy, size):
+    TICKS.append((t0, t1, cx, cy, round(size / 2) * 2))
+
+
+def tick_graph(cur, idx0, total):
+    """Pop each ✅ in: fade + small drop with overshoot. Returns (inputs, graph, last_label, next_idx)."""
+    inputs, g, idx = [], "", idx0
+    for k, (t0, t1, cx, cy, size) in enumerate(TICKS):
+        inputs += ["-loop", "1", "-t", f"{total:.3f}", "-i", str(CHECK_PNG)]
+        e = f"min(1,max(0,(t-{t0:.3f})/0.28))"
+        ye = f"{cy - size / 2:.0f}-36*pow(1-{e},3)+8*sin(PI*{e})"
+        g += (f";[{idx}:v]scale={size}:{size}:flags=lanczos,format=rgba,fade=t=in:st={t0:.3f}:d=0.14:alpha=1[ck{k}];"
+              f"[{cur}][ck{k}]overlay=x={cx - size / 2:.0f}:y='{ye}':enable='between(t,{t0:.3f},{t1:.3f})'[tk{k}]")
+        cur, idx = f"tk{k}", idx + 1
+    return inputs, g, cur, idx
+
+
+# ------------------------------------------------------------------ voice-over
+# The 5 voice clips, in order, and the scenes each one narrates. A clip covering several scenes is split at its
+# longest pause near each expected split point (fraction of the speech, from the script's line lengths).
+VOICE_PLAN = [(("intro", "location"), (0.41,)), (("queue",), ()), (("call", "sign", "pay"), (0.36, 0.72)),
+              (("check_back", "keys"), (0.70,)), (("receive", "photo"), (0.46,))]
+MIN_DUR = {"intro": 2.4, "location": 3.4, "queue": 4.8, "call": 3.0, "sign": 3.0, "pay": 3.0, "check_back": 4.0,
+           "keys": 3.2, "receive": 3.4, "photo": 3.6}
+VO_LEAD, VO_TAIL = 0.2, 0.35
+
+
+def _load_voice(path, work, k, sr):
+    """Decode, mono 48 kHz, light clean-up (rumble + noise), normalised to the same speech RMS."""
+    wav = work / f"vo_{k}.wav"
+    subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(path), "-vn", "-ac", "1",
+                    "-ar", str(sr), "-af", "highpass=f=80,afftdn=nf=-25", str(wav)], check=True)
+    pcm, _ = media.load_wav(wav)
+    pcm = pcm.astype(np.float32)
+    if pcm.ndim > 1:
+        pcm = pcm.mean(axis=1)
+    return pcm
+
+
+def _envelope(pcm, sr, step=0.02):
+    n = int(step * sr)
+    fr = len(pcm) // n
+    rms = np.sqrt((pcm[: fr * n].reshape(fr, n) ** 2).mean(axis=1) + 1e-12)
+    db = 20 * np.log10(rms)
+    voiced = db > db.max() - 32
+    i = 0
+    while i < len(voiced):   # drop blips (breaths, clicks) shorter than 0.16 s
+        if voiced[i]:
+            j = i
+            while j < len(voiced) and voiced[j]:
+                j += 1
+            if (j - i) * step < 0.16:
+                voiced[i:j] = False
+            i = j
+        else:
+            i += 1
+    return db, voiced, step
+
+
+def _split_voice(pcm, sr, n_pieces, ratios):
+    """Return [(start_s, end_s)] speech spans, one per scene."""
+    db, voiced, step = _envelope(pcm, sr)
+    idx = np.nonzero(voiced)[0]
+    s0, s1 = idx[0], idx[-1] + 1
+    pauses, i = [], s0
+    while i < s1:   # internal silent runs >= 0.2 s
+        if not voiced[i]:
+            j = i
+            while j < s1 and not voiced[j]:
+                j += 1
+            if (j - i) * step >= 0.2:
+                pauses.append((j - i, i, j))
+            i = j
+        else:
+            i += 1
+    cuts = []
+    for r in ratios[: n_pieces - 1]:
+        # longest pause near the expected split point (expected = share of the script's text), else the quietest
+        # frame there
+        c = s0 + (s1 - s0) * r
+        near = [(ln, pa, pb) for ln, pa, pb in pauses if abs((pa + pb) / 2 - c) <= 0.22 * (s1 - s0)]
+        if near:
+            _, pa, pb = max(near)
+            cuts.append((pa + pb) // 2)
+        else:
+            w = int(0.4 / step)
+            lo, hi = max(s0 + 1, int(c) - w), min(s1 - 1, int(c) + w)
+            cuts.append(lo + int(np.argmin(db[lo:hi])))
+    bounds = [s0] + cuts + [s1]
+    spans = []
+    for a, b in zip(bounds, bounds[1:]):
+        v = np.nonzero(voiced[a:b])[0]
+        a2, b2 = (a + v[0], a + v[-1] + 1) if len(v) else (a, b)
+        # pad a little, but never into the neighbouring piece
+        spans.append((max(a * step, a2 * step - 0.06), min(b * step, len(pcm) / sr, b2 * step + 0.12)))
+    return spans
+
+
+def prepare_voice(paths, work, sr):
+    """-> {scene_name: pcm piece}; pieces trimmed, 20 ms fades, matched loudness."""
+    if len(paths) != len(VOICE_PLAN):
+        raise SystemExit(f"ต้องใส่ --voice ครบ {len(VOICE_PLAN)} ไฟล์ตามลำดับ (ได้ {len(paths)})")
+    pieces = {}
+    for k, (path, (names, ratios)) in enumerate(zip(paths, VOICE_PLAN)):
+        pcm = _load_voice(path, work, k, sr)
+        _, voiced, step = _envelope(pcm, sr)
+        n = int(step * sr)
+        speech = pcm[: len(voiced) * n].reshape(len(voiced), n)[voiced]
+        pcm = pcm * (0.12 / (np.sqrt((speech ** 2).mean()) + 1e-9))
+        spans = _split_voice(pcm, sr, len(names), ratios)
+        for name, (a, b) in zip(names, spans):
+            x = pcm[int(a * sr): int(b * sr)].copy()
+            f = int(0.02 * sr)
+            x[:f] *= np.linspace(0, 1, f)
+            x[-f:] *= np.linspace(1, 0, f)
+            pieces[name] = x
+            print(f"  voice {k + 1} -> {name:<10} {a:5.2f}-{b:5.2f}s ({b - a:.2f}s)")
+    return pieces
 
 
 # ------------------------------------------------------------------ drawing primitives
@@ -317,10 +443,7 @@ def scene_sign(a, b):
     sc.ev(a + 1.0, b, "{" + "\\an7\\move(420,760,620,760,0,900)\\p1\\bord4\\shad0\\1c" + ass_color("#2B3A55")
           + "\\3c" + ass_color(INK) + "\\fad(150,150)\\frz-25" + "}" + pen[0][2] + "{\\p0}", 13)
     bubble(a, b, 540, 1340, "เซ็นเอกสารให้ครบ", size=70, delay=1.9)
-    sc.ev(a + 2.0, b, "{" + "\\an5\\pos(820,620)\\p1\\bord0\\shad0\\1c" + ass_color(LIME)
-          + "\\fscx10\\fscy10\\t(0,200,\\fscx100\\fscy100)\\fad(0,150)" + "}" + circle(110) + "{\\p0}", 14)
-    sc.ev(a + 2.1, b, "{" + "\\an7\\pos(782,600)\\p1\\bord8\\shad0\\1a&HFF&\\3c&HFFFFFF&"
-          "\\clip(782,0,782,1920)\\t(0,250,\\clip(782,0,900,1920))" + "}" + poly([(0, 22), (22, 44), (64, 0)]) + "{\\p0}", 15)
+    tick(a + 2.0, b, 820, 620, 130)
 
 
 def scene_pay(a, b):
@@ -345,10 +468,7 @@ def scene_pay(a, b):
     for i in range(4):
         rec.append((30, 40 + i * 40, rrect(160 if i % 2 else 120, 14, 7), LGREY, {"z": 1}))
     group(a, b, 660, 1000, rec, anim="rise", delay=1.6, layer=14)
-    sc.ev(a + 1.9, b, "{" + "\\an5\\pos(770,1230)\\p1\\bord0\\shad0\\1c" + ass_color(LIME)
-          + "\\fscx10\\fscy10\\t(0,200,\\fscx100\\fscy100)\\fad(0,150)" + "}" + circle(90) + "{\\p0}", 16)
-    sc.ev(a + 2.0, b, "{" + "\\an7\\pos(740,1212)\\p1\\bord8\\shad0\\1a&HFF&\\3c&HFFFFFF&"
-          "\\clip(740,0,740,1920)\\t(0,250,\\clip(740,0,840,1920))" + "}" + poly([(0, 18), (18, 36), (52, 0)]) + "{\\p0}", 17)
+    tick(a + 1.9, b, 770, 1230, 110)
     bubble(a, b, 540, 1500, "ชำระค่าโอนเรียบร้อย", size=70, delay=1.9, border=LIME)
 
 
@@ -397,11 +517,7 @@ def scene_receive(a, b):
         d = 0.8 + 0.5 * i
         shape(a, b, 120, y, rrect(840, 104, 30), WHITE, layer=10, border=INK, bord=4, anim="rise", delay=d)
         text(a, b, 200, y + 52, n, size=50, color=INK, an=4, delay=d, layer=12)
-        sc.ev(a + d + 0.3, b, "{" + f"\\an5\\pos(890,{y + 52})\\p1\\bord0\\shad0\\1c" + ass_color(LIME)
-              + "\\fscx10\\fscy10\\t(0,180,\\fscx100\\fscy100)\\fad(0,150)" + "}" + circle(76) + "{\\p0}", 13)
-        sc.ev(a + d + 0.4, b, "{" + f"\\an7\\pos(866,{y + 38})\\p1\\bord7\\shad0\\1a&HFF&\\3c&HFFFFFF&"
-              f"\\clip(866,0,866,1920)\\t(0,200,\\clip(866,0,960,1920))" + "}" + poly([(0, 14), (14, 28), (44, 0)])
-              + "{\\p0}", 14)
+        tick(a + d + 0.3, b, 890, y + 52, 92)
         SFX.append((a + d + 0.3, "pop"))
     bubble(a, b, 540, 1620, "ถูกต้องครบ รับโฉนดได้เลย", size=62, delay=2.4, border=LIME, sfx=False)
 
@@ -585,9 +701,14 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("out")
     ap.add_argument("--photo", action="append", default=[])
+    ap.add_argument("--voice", action="append", default=[],
+                    help="voice-over clips (audio or video), 5 in order; scene timing follows the voice")
     a = ap.parse_args()
     work = Path(a.out).resolve().parent / "_anim_work"
     work.mkdir(parents=True, exist_ok=True)
+    sr = 48000
+    voice = prepare_voice(a.voice, work, sr) if a.voice else {}
+    vo_at = []   # (time, pcm)
     t = 0.0
     cuts = []
     photos = a.photo[:9]
@@ -600,6 +721,10 @@ def main():
             t += dur
             cuts.append(t)
             continue
+        name = fn.__name__[len("scene_"):]
+        if name in voice:
+            dur = max(MIN_DUR[name], VO_LEAD + len(voice[name]) / sr + VO_TAIL)
+            vo_at.append((t + VO_LEAD, voice[name]))
         fn(t, t + dur)
         t += dur
         cuts.append(t)
@@ -608,10 +733,24 @@ def main():
         wipe(c)
     (work / "anim.ass").write_text(sc.document(), encoding="utf-8")
 
-    sr = 48000
     track = music(total, sr)
+    if vo_at:
+        vo = np.zeros_like(track)
+        for at, x in vo_at:
+            i0 = int(at * sr)
+            x = x[: len(vo) - i0]
+            vo[i0:i0 + len(x)] += x
+        # duck music under the voice (smoothed, 150 ms attack/release)
+        k = int(0.02 * sr)
+        act = np.repeat(np.abs(vo[: len(vo) // k * k]).reshape(-1, k).max(axis=1) > 0.01, k)
+        act = np.pad(act.astype(np.float32), (0, len(vo) - len(act)))
+        win = int(0.15 * sr)
+        act = np.minimum(1, np.convolve(act, np.ones(win) / win * 2.5, mode="same"))
+        track = track * (1 - 0.65 * act) + vo
     bank = {k: synth_sfx(k, sr) for k in ("pop", "whoosh", "hit")}
     gain = {"pop": 0.18, "whoosh": 0.22, "hit": 0.3}
+    if vo_at:
+        gain = {kk: v * 0.6 for kk, v in gain.items()}
     for at, kind in SFX:
         i0 = int(max(0, at) * sr)
         x = bank[kind][: max(0, len(track) - i0)] * gain[kind]
@@ -655,11 +794,14 @@ def main():
             cur = f"g{k}"
             idx += 1
         fc = pre + f";[{cur}]ass=anim.ass:fontsdir={os.path.relpath(FONTS_DIR, work)}[v0]"
+    tk_in, tk_g, vcur, idx = tick_graph("v0", idx, total)
+    inputs += tk_in
+    fc += tk_g
     logo = ROOT / "assets/brand/redrabbit_logo_red.png"
     inputs += ["-loop", "1", "-t", f"{total:.3f}", "-i", str(logo)]
     end_t = total - 3.8 + 1.6
     fc += (f";[{idx}:v]crop=2200:1300:780:1250,scale=520:-1,format=rgba,fade=t=in:st={end_t:.2f}:d=0.4:alpha=1[lg];"
-           f"[v0][lg]overlay=(W-w)/2:1440:enable='gte(t,{end_t:.2f})'[v]")
+           f"[{vcur}][lg]overlay=(W-w)/2:1440:enable='gte(t,{end_t:.2f})'[v]")
     idx += 1
     inputs += ["-i", str(work / "audio.wav")]
     cmd = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", *inputs, "-filter_complex", fc, "-map", "[v]",
