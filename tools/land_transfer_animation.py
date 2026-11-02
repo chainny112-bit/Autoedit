@@ -4,7 +4,7 @@ Everything is drawn as vectors with libass (ASS drawing commands) and rendered b
 music and pop/whoosh effects. 9:16, 1080x1920.
 
 Usage: python3 tools/land_transfer_animation.py OUT.mp4 [--photo IMG ...]
-  --photo  real customer photos for the "ตัวอย่างลูกค้าของเรา" scene (up to 3). Without them the scene shows an
+  --photo  real customer photos for the "ตัวอย่างลูกค้าของเรา" scene (up to 9). Without them the scene shows an
            illustration clearly labelled "ภาพประกอบ".
 """
 import argparse
@@ -61,6 +61,7 @@ def anim_tags(x, y, anim, delay):
 
 
 def shape(t0, t1, x, y, path, fill, layer=5, anim="fade", delay=0.0, border=None, bord=0, alpha=0, blur=0, extra=""):
+    t0, delay = t0 + delay, 0.0
     tags = (f"\\an7{anim_tags(x, y, anim, delay)}\\p1\\shad0\\bord{bord}\\blur{blur}"
             f"\\1c{ass_color(fill)}\\1a&H{alpha:02X}&")
     if border:
@@ -78,7 +79,8 @@ def group(t0, t1, ox, oy, parts, anim="rise", delay=0.0, layer=5):
 
 def text(t0, t1, x, y, s, size=64, color=INK, family="Kanit ExtraBold", pop=True, delay=0.0, layer=30, bord=0,
          outline=WHITE, an=5):
-    d0 = int(delay * 1000)
+    t0, delay = t0 + delay, 0.0
+    d0 = 0
     anim = (f"\\fscx20\\fscy20\\t({d0},{d0 + 170},\\fscx112\\fscy112)\\t({d0 + 170},{d0 + 260},\\fscx100\\fscy100)"
             f"\\fad({d0 + 60},150)") if pop else f"\\fad({d0 + 200},150)"
     sc.ev(t0, t1, "{" + f"\\an{an}\\pos({x:.0f},{y:.0f})\\fn{family}\\fs{size}\\1c{ass_color(color)}"
@@ -87,6 +89,7 @@ def text(t0, t1, x, y, s, size=64, color=INK, family="Kanit ExtraBold", pop=True
 
 def bubble(t0, t1, x, y, s, size=58, fill=WHITE, color=INK, delay=0.0, border=RED, tail=None, layer=28, sfx=True):
     """Pop-up callout card (the 'text that bounces in')."""
+    t0, delay = t0 + delay, 0.0
     size = fit_size(s, "Kanit ExtraBold", size, 900)
     from engine.graphics import text_width
     w = text_width(s, "Kanit ExtraBold", size) + 80
@@ -387,9 +390,31 @@ def scene_photo(a, b):
     bubble(a, b, 540, 1530, "ยินดีด้วยครับ!", size=96, fill=RED, color=WHITE, border=RED_D, delay=1.6)
 
 
+CARD_IN, CARD_GAP, GRID_HOLD = 1.0, 0.75, 2.6
+
+
+def customer_timing(a, n):
+    """Start time of each photo card and of the closing grid, for n real photos."""
+    starts = [a + CARD_IN + CARD_GAP * k for k in range(n)]
+    grid_t = a + CARD_IN + CARD_GAP * n + 0.5
+    return starts, grid_t
+
+
+def customers_duration(n):
+    return CARD_IN + CARD_GAP * n + 0.5 + GRID_HOLD if n else 4.4
+
+
 def scene_customers(a, b, photos):
     text(a, b, 540, 330, "และนี่คือ", size=72, color=GREY, delay=0.1)
     bubble(a, b, 540, 470, "ตัวอย่างลูกค้าของเรา", size=84, fill=RED, color=WHITE, border=RED_D, delay=0.3)
+    if photos:
+        starts, grid_t = customer_timing(a, len(photos))
+        for st in starts:
+            SFX.append((st, "whoosh"))
+        for k in range(len(photos)):
+            SFX.append((grid_t + 0.08 * k, "pop"))
+        bubble(a, b, 540, 1720, "ขอบคุณลูกค้าทุกท่านที่ไว้วางใจ", size=56, delay=grid_t - a + 0.6, border=LIME, sfx=False)
+        return
     frames = [(90, 640, -6), (560, 700, 5), (300, 1130, -2)]
     for i, (x, y, rot) in enumerate(frames):
         d = 0.6 + 0.35 * i
@@ -446,6 +471,47 @@ SCENES = [(scene_intro, 4.0), (scene_location, 4.2), (scene_queue, 4.8), (scene_
           (scene_customers, 4.4), (scene_outro, 7.0)]
 
 
+def make_cards(photos, work):
+    """Polaroid card (photo keeps its aspect ratio — nobody gets cropped out) + square grid thumbnail per photo."""
+    from PIL import Image, ImageDraw, ImageFilter, ImageOps
+    rnd = random.Random(7)
+    cards, thumbs = [], []
+    for k, ph in enumerate(photos):
+        im = ImageOps.exif_transpose(Image.open(ph)).convert("RGB")
+        s = min(760 / im.width, 880 / im.height)
+        im = im.resize((int(im.width * s), int(im.height * s)), Image.LANCZOS)
+        bw, bb = 26, 26
+        card = Image.new("RGB", (im.width + 2 * bw, im.height + bw + bb), "white")
+        card.paste(im, (bw, bw))
+        m = 40
+        canvas = Image.new("RGBA", (card.width + 2 * m, card.height + 2 * m), (0, 0, 0, 0))
+        shadow = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
+        ImageDraw.Draw(shadow).rectangle((m + 10, m + 16, m + card.width + 10, m + card.height + 16), fill=(0, 0, 0, 110))
+        canvas.alpha_composite(shadow.filter(ImageFilter.GaussianBlur(14)))
+        canvas.paste(card, (m, m))
+        canvas = canvas.rotate(rnd.uniform(-5, 5) * (1 if k % 2 else -1), resample=Image.BICUBIC, expand=True)
+        cp = work / f"card_{k}.png"
+        canvas.save(cp)
+        cards.append((cp, canvas.width, canvas.height))
+        # grid thumbnail: square, centred slightly above the middle (faces are usually in the upper half)
+        side = min(im.width, im.height)
+        top = max(0, int((im.height - side) * 0.35))
+        left = (im.width - side) // 2
+        th = im.crop((left, top, left + side, top + side)).resize((282, 282), Image.LANCZOS)
+        tcard = Image.new("RGB", (302, 302), "white")
+        tcard.paste(th, (10, 10))
+        tc = Image.new("RGBA", (342, 342), (0, 0, 0, 0))
+        sh = Image.new("RGBA", tc.size, (0, 0, 0, 0))
+        ImageDraw.Draw(sh).rectangle((26, 30, 326, 330), fill=(0, 0, 0, 90))
+        tc.alpha_composite(sh.filter(ImageFilter.GaussianBlur(8)))
+        tc.paste(tcard, (20, 20))
+        tc = tc.rotate(rnd.uniform(-3, 3), resample=Image.BICUBIC, expand=True)
+        tp = work / f"thumb_{k}.png"
+        tc.save(tp)
+        thumbs.append((tp, tc.width, tc.height))
+    return cards, thumbs
+
+
 def music(dur, sr=48000):
     """Bright, light background track generated here (royalty-free): I–V–vi–IV plucks + soft kick, 112 bpm."""
     t = np.arange(int(dur * sr)) / sr
@@ -481,11 +547,17 @@ def main():
     work.mkdir(parents=True, exist_ok=True)
     t = 0.0
     cuts = []
+    photos = a.photo[:9]
+    cust_start = None
     for fn, dur in SCENES:
         if fn is scene_customers:
-            fn(t, t + dur, a.photo)
-        else:
-            fn(t, t + dur)
+            dur = customers_duration(len(photos))
+            cust_start = t
+            fn(t, t + dur, photos)
+            t += dur
+            cuts.append(t)
+            continue
+        fn(t, t + dur)
         t += dur
         cuts.append(t)
     total = t
@@ -507,19 +579,35 @@ def main():
     fc = f"[0:v]ass=anim.ass:fontsdir={os.path.relpath(FONTS_DIR, work)}[v0]"
     idx = 1
     # customer photos go into the polaroids (under the frames' white border is fine: drawn after ass? no — before)
-    if a.photo:
-        start = sum(d for _, d in SCENES[:10])
-        slots = [(115, 665, -6), (585, 725, 5), (325, 1155, -2)]
-        pre = "[0:v]null[b0]"
-        cur = "b0"
-        for k, ph in enumerate(a.photo[:3]):
-            x, y, rot = slots[k]
-            d = 0.6 + 0.35 * k
-            inputs += ["-loop", "1", "-t", f"{total:.3f}", "-i", ph]
-            pre += (f";[{idx}:v]scale=380:330:force_original_aspect_ratio=increase,crop=380:330,format=rgba,"
-                    f"rotate={-rot}*PI/180:c=none:ow=rotw({-rot}*PI/180):oh=roth({-rot}*PI/180)[p{k}];"
-                    f"[{cur}][p{k}]overlay={x}:{y}:enable='between(t,{start + d + 0.15:.2f},{start + 4.4:.2f})'[b{k + 1}]")
+    if photos:
+        cards, thumbs = make_cards(photos, work)
+        starts, grid_t = customer_timing(cust_start, len(photos))
+        end = cust_start + customers_duration(len(photos))
+        pre, cur = "[0:v]null[b0]", "b0"
+        for k, ((cp, cw, ch), st) in enumerate(zip(cards, starts)):
+            inputs += ["-loop", "1", "-t", f"{total:.3f}", "-i", str(cp)]
+            xc, yc = (W - cw) / 2, max(560, 1150 - ch / 2)
+            x0 = -cw if k % 2 == 0 else W
+            e = f"min(1,max(0,(t-{st:.3f})/0.42))"
+            xe = f"{xc:.0f}+({x0:.0f}-{xc:.0f})*pow(1-{e},3)"
+            ye = f"{yc:.0f}+90*pow(1-{e},3)"
+            pre += (f";[{idx}:v]format=rgba,fade=t=in:st={st:.3f}:d=0.12:alpha=1[c{k}];"
+                    f"[{cur}][c{k}]overlay=x='{xe}':y='{ye}':enable='between(t,{st:.3f},{grid_t:.3f})'[b{k + 1}]")
             cur = f"b{k + 1}"
+            idx += 1
+        n = len(thumbs)
+        cols = 3 if n > 4 else 2
+        rows = -(-n // cols)
+        for k, (tp, tw, th_) in enumerate(thumbs):
+            r, c = divmod(k, cols)
+            in_row = min(cols, n - r * cols)          # centre a short last row
+            cx = W / 2 + (c - (in_row - 1) / 2) * 330
+            cy = 1080 + (r - (rows - 1) / 2) * 330
+            tk = grid_t + 0.08 * k
+            inputs += ["-loop", "1", "-t", f"{total:.3f}", "-i", str(tp)]
+            pre += (f";[{idx}:v]format=rgba,fade=t=in:st={tk:.3f}:d=0.18:alpha=1[t{k}];"
+                    f"[{cur}][t{k}]overlay={cx - tw / 2:.0f}:{cy - th_ / 2:.0f}:enable='between(t,{tk:.3f},{end:.3f})'[g{k}]")
+            cur = f"g{k}"
             idx += 1
         fc = pre + f";[{cur}]ass=anim.ass:fontsdir={os.path.relpath(FONTS_DIR, work)}[v0]"
     logo = ROOT / "assets/brand/redrabbit_logo_red.png"
