@@ -1,7 +1,7 @@
 # AutoEdit — Multi-Style AI Video Editor (วิดีโอแนวตั้ง)
 
 อัปโหลดคลิปผู้พูดหน้ากล้อง → ระบบถอดเสียง วิเคราะห์เนื้อหา ตัดช่วงเงียบ/คำติดปาก/ประโยคพูดซ้ำ จัดภาพ 9:16 ตามใบหน้า
-→ **AI Director เลือกเอฟเฟกต์จาก Effect Library 17 แบบตามเนื้อหา** (ไม่ใช้ชุดเดิมกับทุกคลิป) → แสดง
+→ **AI Director เลือกเอฟเฟกต์จาก Effect Library 18 แบบตามเนื้อหา** (ไม่ใช้ชุดเดิมกับทุกคลิป) → แสดง
 **Editing Timeline & Effect Map ให้แก้ไขได้** → Preview → Export MP4 1080×1920 (H.264/AAC) พร้อมซับและกราฟิก → QC อัตโนมัติ
 สร้างได้หลายเวอร์ชันจากไฟล์เดียว (Clean / Cinematic / High Retention / Creative / Auto Director) และเปรียบเทียบในหน้าเดียว
 
@@ -48,7 +48,7 @@ pip install -r requirements.txt
 | **Generate Variations** | เลือก A CLEAN · B CINEMATIC · C HIGH RETENTION · D CREATIVE · E AUTO DIRECTOR → ระบบสร้าง Plan แยกต่อเวอร์ชันจากผลวิเคราะห์เดียวกัน และเข้าคิว Preview ทีละเวอร์ชัน (แสดงสถานะแยก) |
 | **เปรียบเทียบเวอร์ชัน** | ชื่อ/Preset, ความยาว, ซับ, เอฟเฟกต์หลัก, จำนวนช่วง B-roll / Motion Graphics / Transition, สถานะ, ปุ่ม เลือก/Preview/Export/ดาวน์โหลด และ "ดูช่วงเดียวกัน" — เลื่อนทุกวิดีโอไปที่ประโยคเดียวกัน (คำนวณจาก Timeline ของแต่ละเวอร์ชัน) แล้วเล่นพร้อมกัน |
 | **Presets** | 7 Preset ในตัว (อ่านอย่างเดียว) + สร้าง/แก้ไข/ทำสำเนา/เปลี่ยนชื่อ/ลบ Custom Preset — เก็บใน `data/presets.json` ตรวจข้อมูลด้วย schema และอ่านกลับจากไฟล์ก่อนแจ้งว่าบันทึกสำเร็จ |
-| **เอฟเฟกต์ 17 แบบ** | รายงานสถานะจริงของทุกเอฟเฟกต์ในเครื่องนี้ (ทำงานจริง/จำลอง/ต้องใช้ API, Input, Fallback, สิ่งที่ต้องการ) |
+| **เอฟเฟกต์ 18 แบบ** | รายงานสถานะจริงของทุกเอฟเฟกต์ในเครื่องนี้ (ทำงานจริง/จำลอง/ต้องใช้ API, Input, Fallback, สิ่งที่ต้องการ) |
 
 ### Command line
 
@@ -87,10 +87,11 @@ Input, ฟังก์ชันเรนเดอร์ (camera / composite / pa
 | 15 | Vertigo | **จำลอง** (2.5D) | ตัวแบบคงขนาด ฉากหลังหดถอยออก (ใช้ mask) | Dolly zoom จริงต้องมีข้อมูลความลึก/ฟุตเทจ · ไม่มี mask → scale + rotation เบาๆ |
 | 16 | Cover Story | ทำงานจริง | ชื่อแบรนด์เป็นหัวนิตยสาร **หลังศีรษะ** (mask), ฉบับ/วันที่จริง, พาดหัวจากบทพูด, cover lines = ประเด็นถัดไปในคลิป | ไม่มี mask → หัวนิตยสารอยู่ด้านหน้า |
 | 17 | Glassy Type | ทำงานจริง | เบลอภาพจริงด้านหลังเฉพาะพื้นที่ + ฟิล์มโปร่งแสง + ขอบสะท้อน + เรืองสีแบรนด์ | — |
+| 18 | Depth Stack | ทำงานจริง | **หลังผู้พูด** (mask): คำสำคัญตัวใหญ่สีเงินโครเมียม (ไล่สี 22 แถบ + เงา + เรืองแสง), คลื่น sine เรืองแสงหรือเกจหน้าปัดพร้อมเข็มรอบศีรษะ (เกจเมื่อมีตัวเลข/การตัดสินใจ) · **หน้าผู้พูด**: การ์ดไอคอนโผล่ตามคำที่พูด, ป้ายเล็กข้างศีรษะ (ตัวเลขที่พูด) | ไม่มี mask → คำเงินย้ายไปเหนือศีรษะถ้ามีที่ว่าง ไม่วาดคลื่น/เกจทับหน้า · ยังไม่อยู่ใน `effects_gallery.mp4` |
 
 **ต้องใช้ API ภายนอก (ไม่ได้เปิดใช้โดยอัตโนมัติ):** การวิเคราะห์เรื่องด้วย Claude (`ANTHROPIC_API_KEY` + ผู้ใช้ติ๊กอนุญาต),
 การสร้างภาพประกอบ AI (`AUTOEDIT_IMAGE_CMD` + ผู้ใช้ติ๊กอนุญาต) ระบบจะไม่เรียก API ที่อาจมีค่าใช้จ่ายโดยไม่ได้รับอนุญาต
-และแสดงสถานะใน Preflight; ไม่มีเอฟเฟกต์ใดใน 17 แบบที่ "ใช้ไม่ได้เลย" เมื่อไม่มี API — ทุกตัวมีทางเลือกที่ระบบทำได้เอง
+และแสดงสถานะใน Preflight; ไม่มีเอฟเฟกต์ใดใน 18 แบบที่ "ใช้ไม่ได้เลย" เมื่อไม่มี API — ทุกตัวมีทางเลือกที่ระบบทำได้เอง
 
 ## AI Director (Auto Effect Selection)
 
@@ -114,10 +115,18 @@ Input, ฟังก์ชันเรนเดอร์ (camera / composite / pa
 | D — Cinematic Storytelling | Storytelling | BALANCED | Pull-back, Orbit, Paper cut, Vertigo, จังหวะช้า |
 | E — High-Retention Social | Retention | DYNAMIC | Hook ชัด ตัดเร็ว Zoom-through เฉพาะจุดเปลี่ยน |
 | F — Motion Graphics Pro | MoGraph | DYNAMIC | UI World, Chart Grow, Checklist, Glassy Type |
-| G — Creative Experimental | Experimental | EXPERIMENTAL | ผสมได้ทั้ง 17 แบบเมื่อเหมาะสม |
+| G — Creative Experimental | Experimental | EXPERIMENTAL | ผสมได้ทั้ง 18 แบบเมื่อเหมาะสม |
+| H — Silver Depth | MoGraph | DYNAMIC | โทนดำเย็น, **Depth Stack ทุกประโยค** (คำเงินหลังศีรษะ + คลื่น/เกจสีเขียวน้ำทะเล + การ์ดไอคอน + ป้ายข้างหัว), ซับตัวเล็กขึ้นทีละคำ |
+
+**H — Silver Depth** ทำตามคลิปอ้างอิงแนว "talking head + กราฟิกซ้อนชั้น": `signature_effects=["depth_stack"]` ทำให้ AI Director
+ใช้ Depth Stack กับทุกประโยคที่เห็นใบหน้า (ไม่ถูกจำกัดโควตา/ระยะห่างเหมือนเอฟเฟกต์อื่น) และคงผู้พูดเต็มจอแทนการแบ่งจอ,
+`look="cool_dark"` ปรับโทนภาพเข้มเย็น, `subtitle_mode="wordbuild"` ซับตัวเล็กเพิ่มทีละคำตามเสียง
+```bash
+python3 cli.py clip.mp4 --preset silver_depth -o out.mp4
+```
 
 Custom Preset ตั้งค่าได้: ชื่อ, สีหลัก/รอง (หรือใช้สีแบรนด์ของโปรเจกต์), ฟอนต์ซับ (Kanit / Prompt / Chakra Petch / Mitr — SIL OFL),
-รูปแบบ/ขนาดซับ, โหมด, Density, Intensity, จังหวะ, เอฟเฟกต์ที่อนุญาต/ห้ามใช้, Transition, SFX/เพลง, Aspect ratio, Export profile
+รูปแบบ/ขนาดซับ (เน้นคำ / ไฮไลต์ทีละคำ / ตัวเล็กขึ้นทีละคำ), โทนภาพ (ธรรมชาติ / ดำเย็น), โหมด, Density, Intensity, จังหวะ, เอฟเฟกต์ที่อนุญาต/ห้ามใช้, Transition, SFX/เพลง, Aspect ratio, Export profile
 (1080p คุณภาพสูง · 1080p เร็ว · 720p)
 
 ## ประสิทธิภาพและทรัพยากร

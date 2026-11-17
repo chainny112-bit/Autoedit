@@ -15,14 +15,20 @@ from .effects.camera import motion_chain, zoom_chain
 
 W, H = 1080, 1920
 CAMERA_OR_COMPOSITE = {e.id for e in FX.REGISTRY.values() if e.category in ("camera", "composite")}
-MASK_EFFECTS = ("frame_break", "green_screen", "couch_wall", "vertigo", "cover_story")
+GRADES = {
+    "natural": "eq=contrast=1.05:saturation=1.04,colorbalance=rs=0.02:gs=0.0:bs=-0.03:rh=0.02:bh=-0.02",
+    # low-key studio look: deeper blacks, muted colour, cool shadows (graphics in the brand colour pop on it)
+    "cool_dark": "eq=contrast=1.12:brightness=-0.035:saturation=0.82:gamma=0.96,"
+                 "colorbalance=rs=-0.03:gs=0.0:bs=0.04:rm=-0.01:bm=0.02:rh=0.0:bh=0.01",
+}
+MASK_EFFECTS = ("frame_break", "green_screen", "couch_wall", "vertigo", "cover_story", "depth_stack")
 PROFILES = {   # export profiles: scale, crf, x264 preset, audio bitrate
     "1080p_high": {"S": 1.0, "crf": 18, "preset": "medium", "ab": "192k", "label": "1080×1920 คุณภาพสูง"},
     "1080p_fast": {"S": 1.0, "crf": 21, "preset": "veryfast", "ab": "160k", "label": "1080×1920 เร็ว/ไฟล์เล็ก"},
     "720p": {"S": 720 / 1080, "crf": 21, "preset": "medium", "ab": "160k", "label": "720×1280 อัปโหลดเร็ว"},
     "preview": {"S": 0.5, "crf": 28, "preset": "ultrafast", "ab": "128k", "label": "Preview 540×960"},
 }
-CACHE_VERSION = 3
+CACHE_VERSION = 4
 
 
 class Cancelled(RuntimeError):
@@ -368,7 +374,7 @@ def render_clip(item, seg, plan, work, out_path, fps, S, assets_meta, bg_png, ca
     w, h = int(W * S) // 2 * 2, int(H * S) // 2 * 2
     ph = int(PANEL_H * S) // 2 * 2
     d = item["d"]
-    grade = "eq=contrast=1.05:saturation=1.04,colorbalance=rs=0.02:gs=0.0:bs=-0.03:rh=0.02:bh=-0.02"
+    grade = GRADES.get(st.get("look"), GRADES["natural"])
     if st.get("vignette", True):
         grade += ",vignette=angle=PI/6"
     args = ["-ss", f"{item['a']:.4f}", "-t", f"{d:.4f}", "-i", src["path"]]
@@ -510,7 +516,7 @@ def _clip_key(item, seg, plan, S, fps, crf, preset, mask_meta, assets_meta):
     seg_vis = {k: seg.get(k) for k in ("layout", "zoom", "effects", "broll", "transition_in", "highlight", "title",
                                        "text", "_fx_asset")}
     seg_vis["clips"] = seg.get("clips")
-    st = {k: plan["settings"].get(k) for k in ("accent", "accent2", "vignette", "intensity", "brand_name")}
+    st = {k: plan["settings"].get(k) for k in ("accent", "accent2", "vignette", "intensity", "brand_name", "look")}
     used = sorted((a["name"], Path(a["path"]).stat().st_size) for a in assets_meta.values()
                   if isinstance(a, dict) and a.get("path") and Path(a["path"]).exists() and a.get("role") == "broll")
     blob = json.dumps([CACHE_VERSION, str(src), stt.st_size, int(stt.st_mtime), item, seg_vis, st, S, fps, crf, preset,
@@ -597,6 +603,8 @@ def render(job_dir, plan, assets_meta, preview=False, log=print, progress=lambda
                         FX.ClipCtx(0, 0, S, 0, 0, 0, fps, it, seg, st, "", work, cache, assets_meta, ""))
                 if e["id"] == "cover_story" and mask and it["first"]:
                     seg["_runtime"]["cover_behind"] = True
+                if e["id"] == "depth_stack" and mask:
+                    seg["_runtime"]["depth_behind"] = True
             report.append({"seg": seg["id"], "effect": "cache", "status": "reused", "msg": f"ใช้คลิปจาก cache ({key[:8]})"})
         else:
             tmp = cache / "clips" / f"{key}.part.mkv"

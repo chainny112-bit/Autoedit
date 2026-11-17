@@ -124,3 +124,23 @@ def test_whisper_gets_samples_not_a_path(monkeypatch, tmp_path):
     segs, info = T.transcribe_whisper(wav, log=lambda *_: None)
     assert isinstance(seen["audio"], np.ndarray) and seen["audio"].dtype == np.float32
     assert segs[0]["text"] == "สวัสดี"
+
+
+def test_silver_depth_preset_and_depth_stack():
+    from engine import presets
+    from engine.effects import REGISTRY, depth
+    p = presets.get("silver_depth")
+    assert p["signature_effects"] == ["depth_stack"] and p["subtitle_mode"] == "wordbuild" and p["look"] == "cool_dark"
+    assert "depth_stack" in REGISTRY and REGISTRY["depth_stack"].category == "composite"
+    seg = {"highlight": ["3", "ยอดขาย"], "words": [], "text": ""}
+    assert depth.hero_word(seg) == "ยอดขาย"          # a lone number goes on the plate, not behind the head
+    assert depth._ramp(0.0) == "#FFFFFF" and depth._ramp(1.0) == "#E6E9EC"
+
+
+def test_wordbuild_adds_one_word_per_event():
+    sc = G.Script({"accent": "#2FE0CF", "accent2": "#A7F7EE"})
+    parts = [{"w": "hello", "s": 0.0, "hl": False}, {"w": " ", "s": None, "hl": False},
+             {"w": "world", "s": 0.5, "hl": True}]
+    sc.subtitles([{"text": "hello world", "s": 0.0, "e": 1.0, "parts": parts}], 1290, 80, "wordbuild")
+    assert len(sc.events) == 2
+    assert sc.events[0].endswith("HELLO ") and "WORLD" in sc.events[1] and "WORLD" not in sc.events[0]

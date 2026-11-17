@@ -367,7 +367,7 @@ async function loadCompare() {
     const s = v.stats || {}; const busy = ACTIVE.includes(v.status);
     const out = v.outputs || {};
     return `<tr class="${v.id === VID ? "sel" : ""}"><td><b>${esc(v.name)}</b><div class="muted small">${esc(v.preset || "")}</div></td>
-      <td>${s.duration ? fmt(s.duration) : "-"}</td><td>${esc(s.subtitle_mode === "karaoke" ? "ไฮไลต์ทีละคำ" : "เน้นคำ")}<div class="muted small">${esc(s.subtitle_font || "")}</div></td>
+      <td>${s.duration ? fmt(s.duration) : "-"}</td><td>${esc({ karaoke: "ไฮไลต์ทีละคำ", wordbuild: "ขึ้นทีละคำ" }[s.subtitle_mode] || "เน้นคำ")}<div class="muted small">${esc(s.subtitle_font || "")}</div></td>
       <td>${(s.main_effects || []).map((e) => `<span class="chip">${esc(e)}</span>`).join(" ") || '<span class="muted">ซับ + การตัด</span>'}</td>
       <td>${s.broll_segments ?? "-"}</td><td>${s.mograph_segments ?? "-"}</td><td>${s.transitions ?? "-"}</td>
       <td><span class="st ${v.status}">${STATUS_TH[v.status] || v.status}</span>${busy ? ` ${Math.round((v.progress || 0) * 100)}%` : ""}${v.qc_errors ? ` <span class="err-t">QC ${v.qc_errors}</span>` : ""}</td>
@@ -477,7 +477,7 @@ function renderPlan() {
       <td><div class="stack"><label>Transition เข้า</label><select data-f="trans">${opt(TRANS_TH, ti.id)}</select>
         <div class="muted small">${ti.id !== "cut" ? esc(ti.reason || "") : ""}</div>
         <label>Sound Effect</label><select data-f="sfx">${opt(SFX_TH, s.sfx || "none")}</select>
-        <div class="muted small">ซับ: ${PLAN.settings.subtitle_mode === "karaoke" ? "ไฮไลต์ทีละคำ" : "เน้นคำ"}</div></div></td></tr>`;
+        <div class="muted small">ซับ: ${{ karaoke: "ไฮไลต์ทีละคำ", wordbuild: "ขึ้นทีละคำ" }[PLAN.settings.subtitle_mode] || "เน้นคำ"}</div></div></td></tr>`;
   }).join("");
   $$("#planTable tbody tr").forEach((tr) => {
     const seg = segs.find((x) => x.id === tr.dataset.id);
@@ -560,7 +560,8 @@ function editPreset(p, isNew = false) {
         <input type="color" name="accent" value="${PE.accent || "#BC0000"}" ${ro ? "disabled" : ""}><input type="color" name="accent2" value="${PE.accent2 || "#A8CE20"}" ${ro ? "disabled" : ""}>
         <label class="chk"><input type="checkbox" name="use_brand" ${!PE.accent ? "checked" : ""} ${ro ? "disabled" : ""}> ใช้สีแบรนด์โปรเจกต์</label></div></div>
       <div class="field"><label>ฟอนต์ซับ</label>${sel("subtitle_font", Object.fromEntries(ENV.fonts.map((f) => [f, f])), PE.subtitle_font)}</div>
-      <div class="field"><label>รูปแบบซับ</label>${sel("subtitle_mode", { keyword: "เน้นคำสำคัญ", karaoke: "ไฮไลต์ทีละคำ" }, PE.subtitle_mode)}</div>
+      <div class="field"><label>รูปแบบซับ</label>${sel("subtitle_mode", { keyword: "เน้นคำสำคัญ", karaoke: "ไฮไลต์ทีละคำ", wordbuild: "ตัวเล็ก ขึ้นทีละคำ" }, PE.subtitle_mode)}</div>
+      <div class="field"><label>โทนภาพ</label>${sel("look", { natural: "ธรรมชาติ", cool_dark: "ดำเย็น (สตูดิโอ)" }, PE.look || "natural")}</div>
       <div class="field"><label>ขนาดซับ</label><input type="number" name="subtitle_size" min="60" max="130" value="${PE.subtitle_size}" ${ro ? "disabled" : ""}></div>
       <div class="field"><label>โหมดตัดต่อ</label>${sel("mode", Object.fromEntries(Object.entries(ENV.modes).map(([k, m]) => [k, m.name])), PE.mode)}</div>
       <div class="field"><label>ความหนาแน่น</label>${sel("density", Object.fromEntries(Object.entries(ENV.densities).map(([k, d]) => [k, `${k} ${d.name}`])), PE.density)}</div>
@@ -586,7 +587,7 @@ function editPreset(p, isNew = false) {
     const g = (n) => $(`#peBody [name=${n}]`);
     const useBrand = g("use_brand").checked;
     const d = { name: g("name").value, description: g("description").value, accent: useBrand ? null : g("accent").value, accent2: useBrand ? null : g("accent2").value,
-      subtitle_font: g("subtitle_font").value, subtitle_mode: g("subtitle_mode").value, subtitle_size: +g("subtitle_size").value, mode: g("mode").value,
+      subtitle_font: g("subtitle_font").value, subtitle_mode: g("subtitle_mode").value, subtitle_size: +g("subtitle_size").value, look: g("look").value, mode: g("mode").value,
       density: +g("density").value, intensity: g("intensity").value, pacing: g("pacing").value, music: g("music").value, aspect: g("aspect").value,
       export_profile: g("export_profile").value, sfx: g("sfx").checked, title_cards: g("title_cards").checked,
       transitions: ENV.transitions.filter((t) => g("tr_" + t).checked),

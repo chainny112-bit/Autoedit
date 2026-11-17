@@ -1,4 +1,4 @@
-"""Style presets: 7 built-ins + user presets stored as validated JSON (data/presets.json)."""
+"""Style presets: 8 built-ins + user presets stored as validated JSON (data/presets.json)."""
 import json
 import re
 import threading
@@ -25,7 +25,7 @@ class PresetModel(BaseModel):
     accent: Optional[str] = None           # None = use the project's brand colours
     accent2: Optional[str] = None
     subtitle_font: str = "Kanit ExtraBold"
-    subtitle_mode: Literal["keyword", "karaoke"] = "keyword"
+    subtitle_mode: Literal["keyword", "karaoke", "wordbuild"] = "keyword"
     subtitle_size: int = Field(default=92, ge=60, le=130)
     intensity: Literal["low", "medium", "high"] = "medium"
     density: int = Field(default=2, ge=1, le=4)
@@ -33,6 +33,8 @@ class PresetModel(BaseModel):
     pacing: Literal["calm", "normal", "fast"] = "normal"
     allowed_effects: list[str] = []         # empty = all effects allowed
     banned_effects: list[str] = []
+    signature_effects: list[str] = []       # the style's trademark: used on every fitting sentence, not rationed
+    look: Literal["natural", "cool_dark"] = "natural"
     transitions: list[str] = ["cut", "flash", "zoom_through"]
     sfx: bool = True
     music: Literal["generated", "upload", "none"] = "generated"
@@ -58,7 +60,7 @@ class PresetModel(BaseModel):
             raise ValueError(f"ฟอนต์ต้องเป็นหนึ่งใน {SUBTITLE_FONTS}")
         return v
 
-    @field_validator("allowed_effects", "banned_effects")
+    @field_validator("allowed_effects", "banned_effects", "signature_effects")
     @classmethod
     def _effects(cls, v):
         bad = [e for e in v if e not in REGISTRY]
@@ -120,7 +122,15 @@ BUILTIN = {
                          "digital_zoom", "zoom_through", "doodle_boil"]),
     "creative_experimental": B(
         name="G — Creative Experimental", mode="experimental", density=4, intensity="high",
-        description="AI ทดลองผสมเอฟเฟกต์ทั้ง 17 แบบ · Frame Break, Paper Cut, Doodle Boil, Zoom-through เมื่อเหมาะสม โดยรักษาความชัดเจนของเนื้อหา"),
+        description="AI ทดลองผสมเอฟเฟกต์ทั้ง 18 แบบ · Frame Break, Paper Cut, Doodle Boil, Zoom-through เมื่อเหมาะสม โดยรักษาความชัดเจนของเนื้อหา"),
+    "silver_depth": B(
+        name="H — Silver Depth", accent="#2FE0CF", accent2="#A7F7EE", mode="mograph", density=3, intensity="medium",
+        pacing="fast", look="cool_dark", subtitle_mode="wordbuild", subtitle_font="Kanit SemiBold", subtitle_size=80,
+        description="โทนดำเย็น สตูดิโอ · ทุกความคิดมีคำใหญ่สีเงินโครเมียมอยู่หลังศีรษะ · คลื่นเรืองแสงหรือเกจสีเขียวน้ำทะเลรอบหัว · "
+                    "การ์ดไอคอนโผล่ตามคำที่พูด ป้ายเล็กข้างหัว · ซับตัวเล็กขึ้นทีละคำ",
+        signature_effects=["depth_stack"],
+        allowed_effects=["depth_stack", "digital_zoom", "chart_grow", "checklist"],
+        transitions=["cut"], title_cards=False, broll_density="low", music_db=-28),
 }
 for k, v in BUILTIN.items():
     v.update(id=k, builtin=True)

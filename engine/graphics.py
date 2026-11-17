@@ -179,6 +179,9 @@ class Script:
             pop = "\\fscx82\\fscy82\\t(0,110,\\fscx104\\fscy104)\\t(110,170,\\fscx100\\fscy100)"
             self.boxes.append((t0, t1, 540 - text_width(p["text"], fnt, sz) / 2, y - sz * 0.75,
                                540 + text_width(p["text"], fnt, sz) / 2, y + sz * 0.75, "sub"))
+            if mode == "wordbuild":
+                self._wordbuild(p, y, size, fnt, max_w)
+                continue
             if mode == "karaoke":
                 timed = [i for i, w in enumerate(p["parts"]) if w["s"] is not None]
                 for k, i in enumerate(timed):
@@ -202,6 +205,29 @@ class Script:
                 self.ev(t0, t1, "{" + gtags + f"\\blur10\\1c{hl}\\3c{hl}\\1a&HFF&\\3a&HFF&"
                         + pop + "\\fad(60,40)}" + glow, layer=19)
             self.ev(t0, t1, "{" + base + pop + "\\fad(60,40)}" + body, layer=20)
+
+    def _wordbuild(self, p, y, size, fnt, max_w):
+        """Small clean captions that build word by word (each spoken word is added to the line as it is said).
+        No heavy stroke: a soft shadow keeps them readable while the big graphics carry the emphasis."""
+        sz = fit_size(p["text"], fnt, max(40, int(size * 0.55)), max_w, min_size=30)
+        t0, t1 = p["s"], p["e"]
+        hl = ass_color(self.primary)
+        base = (f"\\an5\\pos(540,{y:.0f})\\fn{fnt}\\fs{sz}\\fsp1\\bord0\\shad2\\4c&H000000&\\4a&H50&"
+                f"\\1c&HFFFFFF&")
+        timed = [i for i, w in enumerate(p["parts"]) if w["s"] is not None] or [len(p["parts"]) - 1]
+        for k, i in enumerate(timed):
+            a = max(t0, p["parts"][i]["s"]) if k and p["parts"][i]["s"] is not None else t0
+            b = p["parts"][timed[k + 1]]["s"] if k + 1 < len(timed) else t1
+            b = min(t1, max(a + 0.02, b if b is not None else t1))
+            last = timed[k + 1] if k + 1 < len(timed) else len(p["parts"])
+            body = ""
+            for j, w in enumerate(p["parts"][:last]):
+                txt = esc(w["w"].upper())
+                body += ("{\\1c" + hl + "}" + txt + "{\\1c&HFFFFFF&}") if w["hl"] else txt
+            fade = "\\fad(50,0)" if k == 0 else ""
+            if k + 1 == len(timed):
+                fade = "\\fad(0,80)" if k else "\\fad(50,80)"
+            self.ev(a, b, "{" + base + fade + "}" + body, layer=20)
 
     # ---------- composite graphics ----------
     def divider(self, t0, t1, y=960):

@@ -22,17 +22,17 @@ MODES = {
                   "w": {"digital_zoom": 1.0, "frame_break": 0.85, "headline_wall": 0.7, "checklist": 0.8,
                         "glassy_type": 0.6, "zoom_through": 0.7, "doodle_boil": 0.75, "chart_grow": 0.8,
                         "phone_mockup": 0.6, "pull_back": 0.5, "ui_world": 0.5, "cover_story": 0.5, "paper_cut": 0.3,
-                        "orbit": 0.3, "vertigo": 0.3, "couch_wall": 0.3, "green_screen": 0.3}},
+                        "orbit": 0.3, "vertigo": 0.3, "couch_wall": 0.3, "green_screen": 0.3, "depth_stack": 0.6}},
     "mograph": {"name": "D — Motion Graphics Heavy", "desc": "UI World, Headline Wall, Chart Grow, Glassy Type และกราฟิกเคลื่อนไหว",
                 "w": {"ui_world": 1.0, "headline_wall": 1.0, "chart_grow": 1.0, "glassy_type": 1.0, "checklist": 0.9,
                       "phone_mockup": 0.8, "cover_story": 0.7, "doodle_boil": 0.5, "digital_zoom": 0.5,
                       "zoom_through": 0.6, "paper_cut": 0.4, "pull_back": 0.4, "frame_break": 0.3, "orbit": 0.2,
-                      "vertigo": 0.2, "couch_wall": 0.3, "green_screen": 0.2}},
+                      "vertigo": 0.2, "couch_wall": 0.3, "green_screen": 0.2, "depth_stack": 0.8}},
     "experimental": {"name": "E — Creative Experimental", "desc": "Frame Break, Orbit, Vertigo, Paper Cut, Zoom-through ตามความเหมาะสม",
                      "w": {"frame_break": 1.0, "orbit": 1.0, "vertigo": 0.9, "paper_cut": 1.0, "zoom_through": 1.0,
                            "doodle_boil": 0.8, "couch_wall": 0.8, "green_screen": 0.7, "cover_story": 0.7,
                            "pull_back": 0.7, "headline_wall": 0.5, "glassy_type": 0.5, "phone_mockup": 0.5,
-                           "chart_grow": 0.6, "checklist": 0.5, "ui_world": 0.4, "digital_zoom": 0.5}},
+                           "chart_grow": 0.6, "checklist": 0.5, "ui_world": 0.4, "digital_zoom": 0.5, "depth_stack": 0.7}},
     "auto": {"name": "F — Auto Director", "desc": "AI เลือกผสมเอฟเฟกต์จากเนื้อหา คำนึงถึงความเข้าใจง่ายและต้นทุนประมวลผล", "w": None},
 }
 
@@ -57,7 +57,7 @@ GENRES = {
                  "w": {"zoom_through": 1.0, "vertigo": 0.8, "frame_break": 0.7, "digital_zoom": 0.8, "headline_wall": 0.5}},
     "talking": {"name": "พูดหน้ากล้อง", "cues": [],
                 "w": {"digital_zoom": 1.0, "frame_break": 0.7, "doodle_boil": 0.5, "glassy_type": 0.4,
-                      "headline_wall": 0.4, "checklist": 0.5}},
+                      "headline_wall": 0.4, "checklist": 0.5, "depth_stack": 0.5}},
 }
 
 DENSITY = {
@@ -207,8 +207,11 @@ def direct(plan, settings, assets=(), caps=None, log=print):
     banned = set(settings.get("banned_effects") or [])
     trans_allowed = set(settings.get("transitions") or ["cut", "flash", "zoom_through"])
     avoid = set(settings.get("_avoid") or [])
+    signature = set(settings.get("signature_effects") or []) - banned
     genre = detect_genre(plan["segments"])
     W = weights(mode, genre)
+    for eid in signature:
+        W[eid] = max(W.get(eid, 0), 1.6)
     chroma = settings.get("_chroma") or {}
     ctx = {"caps": {**caps, "chroma": bool(chroma.get("share", 0) > 0.35)}, "mode": mode, "genre": genre["genre"],
            "density": level, "intensity": intensity}
@@ -225,7 +228,8 @@ def direct(plan, settings, assets=(), caps=None, log=print):
         s["effects"], s["transition_in"] = [], {"id": "cut", "reason": "ตัดตรง (ค่าเริ่มต้น)"}
         imp = f["importance"]
         b0 = (s.get("broll") or {}).get("kind", "none")
-        if b0 not in ("none", "asset") and imp < basic_min:
+        if b0 not in ("none", "asset") and (imp < basic_min or (signature and f["face"])):
+            # (a signature style keeps the presenter full-frame: its own graphics carry the information)
             # basic info graphics are motion graphics too: they obey the density budget
             s["broll_suppressed"] = s.get("broll")
             s["broll"] = {"kind": "none"}
@@ -249,9 +253,9 @@ def direct(plan, settings, assets=(), caps=None, log=print):
                 continue
             score, reason, override = (r + ({},))[:3] if len(r) == 2 else r
             score *= w * (0.5 + imp)
-            if eid in recent[-2:]:
+            if eid in recent[-2:] and eid not in signature:
                 score *= 0.25                       # variety: no back-to-back repeats without reason
-            score *= 0.75 ** usage[eid]
+            score *= 0.75 ** usage[eid] if eid not in signature else 1
             if eid in avoid:
                 score *= 0.45                       # creative variant: prefer what the other versions didn't use
             cands.append((score, eid, reason, override))
@@ -265,12 +269,12 @@ def direct(plan, settings, assets=(), caps=None, log=print):
             if cat in chosen_cats and not (level == 4 and cat == "overlay"):
                 continue
             major = eff.attention >= 1.4
-            if imp < D["min_imp"] and major:
+            if imp < D["min_imp"] and major and eid not in signature:
                 continue
-            if major and s["start"] - last_major_t < D["gap"] and imp < 0.9:
+            if major and eid not in signature and s["start"] - last_major_t < D["gap"] and imp < 0.9:
                 continue
             cost = eff.attention - (1.2 if eff.category == "panel" and layout in ("pip", "split") else 0)
-            if used + cost > budget:
+            if used + cost > budget and eid not in signature:
                 continue
             if eff.layout == "full" and layout not in ("full",) and eff.category != "panel":
                 continue
@@ -279,9 +283,9 @@ def direct(plan, settings, assets=(), caps=None, log=print):
                     continue    # the hook keeps the presenter on screen
                 if any(REGISTRY[e["id"]].layout == "full" for e in s["effects"]):
                     continue    # a full-frame effect is already chosen: don't split the screen under it
-            if usage[eid] >= max_uses:
+            if usage[eid] >= max_uses and eid not in signature:
                 continue
-            if eff.category == "composite" or eid == "vertigo":
+            if (eff.category == "composite" or eid == "vertigo") and eid not in signature:
                 secs = f["dur"]
                 if heavy_used + secs > D["heavy_seconds"]:
                     continue

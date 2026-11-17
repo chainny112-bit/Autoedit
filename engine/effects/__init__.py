@@ -1,12 +1,12 @@
-"""Effect registry (17 effects). Add an effect by implementing it in a module and listing it in build()."""
-from . import camera, compositing, overlays, panels, segmentation
+"""Effect registry (18 effects). Add an effect by implementing it in a module and listing it in build()."""
+from . import camera, compositing, depth, overlays, panels, segmentation
 from .base import ClipCtx, Effect, INTENSITY, Param
 
 _ORDER = ["orbit", "couch_wall", "ui_world", "frame_break", "digital_zoom", "phone_mockup", "checklist",
           "headline_wall", "zoom_through", "chart_grow", "pull_back", "green_screen", "paper_cut", "doodle_boil",
-          "vertigo", "cover_story", "glassy_type"]
+          "vertigo", "cover_story", "glassy_type", "depth_stack"]
 
-REGISTRY = {e.id: e for mod in (camera, compositing, panels, overlays) for e in mod.build()}
+REGISTRY = {e.id: e for mod in (camera, compositing, panels, overlays, depth) for e in mod.build()}
 assert sorted(REGISTRY) == sorted(_ORDER), sorted(set(REGISTRY) ^ set(_ORDER))
 TRANSITIONS = ["cut", "flash", "zoom_through"]
 
